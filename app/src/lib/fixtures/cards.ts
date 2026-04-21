@@ -1,0 +1,179 @@
+import type { FeedCardRow } from "@/lib/supabase/database.types";
+
+const now = Date.now();
+const hoursAgo = (h: number) => new Date(now - h * 60 * 60 * 1000).toISOString();
+
+export const FIXTURE_BATCH_ID = "2026-04-21-07";
+
+export const fixtureCards: FeedCardRow[] = [
+  {
+    id: "fx-01",
+    title: "Anthropic publie Claude Opus 4.7 avec fenêtre contextuelle de 1M tokens",
+    synthesis:
+      "Opus 4.7 étend le contexte à 1M tokens pour les clients Max, avec prompt caching par défaut. Les benchmarks agentiques montrent +12% vs 4.6 sur SWE-bench Verified, au prix d'une latence légèrement supérieure.",
+    sources: [
+      { url: "https://www.anthropic.com/news/claude-opus-4-7", name: "Anthropic" },
+      { url: "https://techcrunch.com/2026/04/anthropic-claude-4-7", name: "TechCrunch" },
+    ],
+    divergence_notes: null,
+    tags: ["ai", "anthropic", "llm"],
+    card_type: "deep_dive",
+    importance_score: 9,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(2),
+  },
+  {
+    id: "fx-02",
+    title: "La BCE maintient ses taux, signale une pause prolongée",
+    synthesis:
+      "Christine Lagarde écarte toute baisse avant le T3. L'inflation sous-jacente reste à 2.4%, au-dessus de la cible. Les marchés obligataires européens se tendent, bund 10 ans +7bp.",
+    sources: [
+      { url: "https://www.ecb.europa.eu/press/pr/date/2026/html", name: "ECB" },
+      { url: "https://www.ft.com/content/ecb-rates-april-2026", name: "FT" },
+      { url: "https://www.bloomberg.com/news/articles/ecb-hold", name: "Bloomberg" },
+    ],
+    divergence_notes:
+      "FT lit la déclaration comme hawkish, Bloomberg comme neutre — différence sur l'interprétation du forward guidance.",
+    tags: ["macro", "europe", "rates"],
+    card_type: "news",
+    importance_score: 7,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(3),
+  },
+  {
+    id: "fx-03",
+    title: "Nature publie un essai phase 3 sur lecanemab en prévention primaire",
+    synthesis:
+      "AHEAD 3-45 montre une réduction de 35% du déclin cognitif sur 4 ans chez des adultes asymptomatiques avec biomarqueurs positifs. Coût et tolérance restent les freins cliniques.",
+    sources: [
+      { url: "https://www.nature.com/articles/lecanemab-ahead-2026", name: "Nature" },
+      { url: "https://www.nejm.org/doi/abs/ahead-3-45", name: "NEJM" },
+    ],
+    divergence_notes: null,
+    tags: ["health", "neuro", "trial"],
+    card_type: "news",
+    importance_score: 8,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(4),
+  },
+  {
+    id: "fx-04",
+    title: "OpenAI déploie un agent de navigation web pour tous les comptes Plus",
+    synthesis:
+      "Operator devient gratuit pour Plus, avec sandbox VM persistante et memory cross-session. L'outil complète ChatGPT côté actions, sans remplacer le chat standard.",
+    sources: [
+      { url: "https://openai.com/blog/operator-april-2026", name: "OpenAI" },
+      { url: "https://www.theverge.com/2026/04/openai-operator", name: "The Verge" },
+    ],
+    divergence_notes: null,
+    tags: ["ai", "openai", "agents"],
+    card_type: "news",
+    importance_score: 6,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(5),
+  },
+  {
+    id: "fx-05",
+    title: "Le Monde enquête sur les pratiques de Temu en Europe",
+    synthesis:
+      "Après 18 mois d'investigation, Le Monde documente un réseau de fulfillment centers non-déclarés en Pologne et Allemagne, qui contournent les seuils de minimis européens révisés en 2025.",
+    sources: [
+      { url: "https://www.lemonde.fr/enquete/temu-eu-2026", name: "Le Monde" },
+    ],
+    divergence_notes: null,
+    tags: ["europe", "commerce", "regulation"],
+    card_type: "news",
+    importance_score: 5,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(6),
+  },
+  {
+    id: "fx-06",
+    title: "arXiv : un papier revendique une amélioration 4x sur FlashAttention-4",
+    synthesis:
+      "Tri Dao et al. présentent une version block-sparse avec kernels Hopper optimisés. Throughput mesuré 780 TFLOPS sur H200, soit 4.1x FlashAttention-3 en training Llama-3 70B.",
+    sources: [
+      { url: "https://arxiv.org/abs/2604.05123", name: "arXiv" },
+      { url: "https://twitter.com/tri_dao/status/flashatt4", name: "X/Twitter" },
+    ],
+    divergence_notes: null,
+    tags: ["ai", "research", "hpc"],
+    card_type: "news",
+    importance_score: 7,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(7),
+  },
+  {
+    id: "fx-07",
+    title: "Saint-Luc ouvre un programme de télé-radiologie IA pour les gardes",
+    synthesis:
+      "Le CHU UCLouvain déploie une solution de pré-lecture sur les TDM crâniens nocturnes. Triage automatique des hémorragies avec escalade humaine systématique — pas d'auto-validation.",
+    sources: [
+      { url: "https://www.saintluc.be/actualites/teleradio-2026", name: "Saint-Luc" },
+      { url: "https://www.lesoir.be/saintluc-teleradio", name: "Le Soir" },
+    ],
+    divergence_notes: null,
+    tags: ["health", "radio", "belgique"],
+    card_type: "news",
+    importance_score: 8,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(8),
+  },
+  {
+    id: "fx-08",
+    title: "Apple publie un MLX 1.0 avec support training distribué",
+    synthesis:
+      "La 1.0 marque la sortie du mode expérimental et ajoute sharding tensor parallèle sur clusters M-series. Premiers benchmarks sur Mac Studio M4 Ultra cluster de 8 machines.",
+    sources: [
+      { url: "https://ml-explore.github.io/mlx/1.0", name: "Apple MLX" },
+      { url: "https://news.ycombinator.com/item?id=mlx-1-0", name: "HN" },
+    ],
+    divergence_notes: null,
+    tags: ["ai", "apple", "tooling"],
+    card_type: "news",
+    importance_score: 5,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(9),
+  },
+  {
+    id: "fx-09",
+    title: "Belgique : accord budgétaire De Wever, coupes de 2.1 Md€ sur la santé",
+    synthesis:
+      "Le gouvernement fédéral trouve un compromis sur l'ajustement budgétaire. Les coupes santé incluent un recalibrage de l'INAMI et des nomenclatures hospitalières — détails techniques attendus en mai.",
+    sources: [
+      { url: "https://www.lecho.be/budget-avril-2026", name: "L'Écho" },
+      { url: "https://www.rtbf.be/article/budget-2026", name: "RTBF" },
+    ],
+    divergence_notes: null,
+    tags: ["belgique", "politique", "santé"],
+    card_type: "news",
+    importance_score: 6,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(10),
+  },
+  {
+    id: "fx-10",
+    title: "Stratechery : pourquoi les navigateurs IA tueront le search avant le chat",
+    synthesis:
+      "Ben Thompson argue que la transition search → IA passera par les navigateurs (Arc, Dia, Comet), pas par les chats standalone, car le contexte de navigation est un moat défendable face aux LLM providers.",
+    sources: [
+      { url: "https://stratechery.com/2026/browsers-eat-search/", name: "Stratechery" },
+    ],
+    divergence_notes: null,
+    tags: ["tech", "strategy", "browsers"],
+    card_type: "news",
+    importance_score: 6,
+    batch_id: FIXTURE_BATCH_ID,
+    hero_image_url: null,
+    created_at: hoursAgo(11),
+  },
+];
