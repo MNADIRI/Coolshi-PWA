@@ -1,0 +1,54 @@
+# Node
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Worker runtime state
+worker/storage/sessions/*.enc.json
+worker/logs/*.log
+worker/.coolshi-keys
+
+# next-pwa generated files
+app/public/sw.js
+app/public/sw.js.map
+app/public/workbox-*.js
+app/public/workbox-*.js.map
+app/public/fallback-*.js
+app/public/fallback-*.js.map
+
+# Playwright
+playwright-report/
+test-results/
+.playwright/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
