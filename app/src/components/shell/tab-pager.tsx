@@ -16,27 +16,52 @@ interface Props {
 export function TabShell({ tabs, children, initial = 0 }: Props) {
   const [activeIdx, setActiveIdx] = useState(initial);
   const [dragOffset, setDragOffset] = useState(0);
-  const dragRef = useRef<{ startX: number; startIdx: number } | null>(null);
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    startIdx: number;
+    axis: "h" | "v" | null;
+  } | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  const AXIS_LOCK_PX = 8;
 
   const onTouchStart = (e: TouchEvent<HTMLDivElement>) => {
     const t = e.touches[0];
     if (!t) return;
-    dragRef.current = { startX: t.clientX, startIdx: activeIdx };
+    dragRef.current = {
+      startX: t.clientX,
+      startY: t.clientY,
+      startIdx: activeIdx,
+      axis: null,
+    };
   };
 
   const onTouchMove = (e: TouchEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
+    const s = dragRef.current;
+    if (!s) return;
     const t = e.touches[0];
     if (!t) return;
-    setDragOffset(t.clientX - dragRef.current.startX);
+    const dx = t.clientX - s.startX;
+    const dy = t.clientY - s.startY;
+    if (s.axis === null) {
+      if (Math.abs(dx) < AXIS_LOCK_PX && Math.abs(dy) < AXIS_LOCK_PX) return;
+      s.axis = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.axis === "h") setDragOffset(dx);
   };
 
   const onTouchEnd = () => {
-    if (!dragRef.current) return;
+    const s = dragRef.current;
+    if (!s) return;
+    if (s.axis !== "h") {
+      setDragOffset(0);
+      dragRef.current = null;
+      return;
+    }
     const width = viewportRef.current?.offsetWidth ?? 360;
     const threshold = width * 0.22;
-    let next = dragRef.current.startIdx;
+    let next = s.startIdx;
     if (dragOffset < -threshold && next < tabs.length - 1) next += 1;
     else if (dragOffset > threshold && next > 0) next -= 1;
     setActiveIdx(next);
@@ -72,6 +97,7 @@ export function TabShell({ tabs, children, initial = 0 }: Props) {
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
       >
         <div
           className="flex h-full"
