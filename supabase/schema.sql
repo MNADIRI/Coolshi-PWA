@@ -84,6 +84,19 @@ create table saved_cards (
   saved_at timestamptz not null default now()
 );
 
+create table manual_batch_jobs (
+  id uuid primary key default gen_random_uuid(),
+  requested_for_date date not null default (timezone('Europe/Brussels', now()))::date,
+  requested_at timestamptz not null default now(),
+  status text not null default 'in_progress'
+    check (status in ('in_progress','completed','failed')),
+  batch_id text,
+  error_message text,
+  completed_at timestamptz
+);
+create unique index manual_batch_jobs_daily_quota
+  on manual_batch_jobs(requested_for_date);
+
 create table agent_runs (
   id uuid primary key default gen_random_uuid(),
   batch_id text not null unique,

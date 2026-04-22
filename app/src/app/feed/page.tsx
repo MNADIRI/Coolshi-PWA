@@ -1,6 +1,7 @@
-import type { BriefRow, FeedCardRow } from "@/lib/supabase/database.types";
+import type { BriefRow, FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
 import { fixtureCards } from "@/lib/fixtures/cards";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { extractHeroImage } from "@/lib/og-image";
 import type { LibrarySource } from "@/components/screens/library-screen";
 import type { PastelHue } from "@/components/sky/sky";
 import { SpaShell } from "@/components/shell/spa-shell";
@@ -53,7 +54,33 @@ async function loadFeedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
     .order("importance_score", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return cards ?? [];
+  const rows = cards ?? [];
+  await resolveHeroImages(rows);
+  return rows;
+}
+
+async function resolveHeroImages(rows: FeedCardRow[]): Promise<void> {
+  const unresolved = rows.filter(
+    (r) => !r.hero_image_url && Array.isArray(r.sources) && r.sources[0]?.url,
+  );
+  if (unresolved.length === 0) return;
+  const results = await Promise.allSettled(
+    unresolved.map((r) => extractHeroImage(r.sources[0]!.url)),
+  );
+  const supabase = await getServerSupabase();
+  const updates: { id: string; hero_image_url: string }[] = [];
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled" && r.value) {
+      const row = unresolved[i]!;
+      row.hero_image_url = r.value;
+      updates.push({ id: row.id, hero_image_url: r.value });
+    }
+  });
+  await Promise.allSettled(
+    updates.map((u) =>
+      supabase.from("feed_cards").update({ hero_image_url: u.hero_image_url }).eq("id", u.id),
+    ),
+  );
 }
 
 async function loadBrief(useFixtures: boolean): Promise<BriefRow | null> {
@@ -115,6 +142,23 @@ async function loadLibrary(useFixtures: boolean): Promise<LibrarySource[]> {
   }));
 }
 
+async function loadTodayManualJob(useFixtures: boolean): Promise<ManualBatchJobRow | null> {
+  if (useFixtures) return null;
+  const supabase = await getServerSupabase();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Brussels",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const { data } = await supabase
+    .from("manual_batch_jobs")
+    .select("*")
+    .eq("requested_for_date", today)
+    .maybeSingle();
+  return data ?? null;
+}
+
 async function loadSavedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
   if (useFixtures) return [];
   const supabase = await getServerSupabase();
@@ -132,11 +176,12 @@ async function loadSavedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
 
 export default async function FeedPage() {
   const useFixtures = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
-  const [feedRows, brief, library, savedCards] = await Promise.all([
+  const [feedRows, brief, library, savedCards, manualJob] = await Promise.all([
     loadFeedCards(useFixtures),
     loadBrief(useFixtures),
     loadLibrary(useFixtures),
     loadSavedCards(useFixtures),
+    loadTodayManualJob(useFixtures),
   ]);
 
   return (
@@ -145,6 +190,7 @@ export default async function FeedPage() {
       brief={brief}
       library={library}
       savedCards={savedCards}
+      manualJob={manualJob}
       useFixtures={useFixtures}
     />
   );

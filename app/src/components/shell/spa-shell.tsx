@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { BriefRow, FeedCardRow } from "@/lib/supabase/database.types";
+import type { BriefRow, FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
 import { TabShell, type TabDef } from "@/components/shell/tab-pager";
 import { FeedScreen } from "@/components/screens/feed-screen";
 import {
@@ -23,10 +23,11 @@ interface Props {
   brief: BriefRow | null;
   library: LibrarySource[];
   savedCards: FeedCardRow[];
+  manualJob: ManualBatchJobRow | null;
   useFixtures: boolean;
 }
 
-export function SpaShell({ feedRows, brief, library, savedCards, useFixtures }: Props) {
+export function SpaShell({ feedRows, brief, library, savedCards, manualJob, useFixtures }: Props) {
   const [saved, setSaved] = useState<FeedCardRow[]>(savedCards);
   const savedIdSet = useMemo(() => new Set(saved.map((c) => c.id)), [saved]);
 
@@ -50,6 +51,7 @@ export function SpaShell({ feedRows, brief, library, savedCards, useFixtures }: 
         savedIds={savedIdSet}
         useFixtures={useFixtures}
         onSavedChange={onSavedChange}
+        manualJob={manualJob}
       />
       <LibraryScreen sources={library} />
       <BriefScreen brief={brief} readOnly={useFixtures} />

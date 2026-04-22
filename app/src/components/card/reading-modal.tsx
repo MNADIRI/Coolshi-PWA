@@ -1,10 +1,11 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
+import { motion, useDragControls, useMotionValue, type PanInfo } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { CardView } from "@/lib/card-format";
 import type { FeedCardRow } from "@/lib/supabase/database.types";
-import { SkyWindow } from "@/components/sky/sky";
+import { HeroMedia } from "./hero-media";
 import { hostnameOf } from "@/lib/url";
 import { Caption, Sources } from "./primitives";
 
@@ -59,20 +60,55 @@ export function ReadingModal({
     }
   };
 
+  const y = useMotionValue(0);
+  const dragControls = useDragControls();
+
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.y > 120 || info.velocity.y > 800) {
+      onOpenChange(false);
+    } else {
+      y.set(0);
+    }
+  };
+
+  const startDrag = (e: React.PointerEvent) => {
+    dragControls.start(e);
+  };
+
   return (
     <Dialog.Root
       open={view !== null}
       onOpenChange={(open) => {
+        if (!open) y.set(0);
         onOpenChange(open);
       }}
     >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm [animation:cs-fade-in_260ms_ease-out]" />
-        <Dialog.Content
-          className="fixed inset-x-0 bottom-0 z-50 flex h-[93dvh] flex-col overflow-hidden rounded-t-[24px] bg-canvas shadow-[0_-20px_60px_rgba(0,0,0,0.18)] focus:outline-none [animation:cs-slide-up_380ms_cubic-bezier(0.2,0.8,0.2,1)] safe-bottom"
-          aria-describedby={undefined}
-        >
-          {view && <ModalBody view={view} saved={saved} onToggleSaved={toggleSaved} />}
+        <Dialog.Content asChild aria-describedby={undefined}>
+          <motion.div
+            style={{ y }}
+            drag="y"
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={onDragEnd}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 32, stiffness: 280 }}
+            className="fixed inset-x-0 bottom-0 z-50 flex h-[93dvh] flex-col overflow-hidden rounded-t-[24px] bg-canvas shadow-[0_-20px_60px_rgba(0,0,0,0.18)] focus:outline-none safe-bottom"
+          >
+            {view && (
+              <ModalBody
+                view={view}
+                saved={saved}
+                onToggleSaved={toggleSaved}
+                onHeaderPointerDown={startDrag}
+              />
+            )}
+          </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -109,48 +145,56 @@ function ModalBody({
   view,
   saved,
   onToggleSaved,
+  onHeaderPointerDown,
 }: {
   view: CardView;
   saved: boolean;
   onToggleSaved: () => void;
+  onHeaderPointerDown: (e: React.PointerEvent) => void;
 }) {
   const showHero = view.format !== "link";
   return (
     <>
-      <div className="relative flex items-center justify-between px-5 pb-1.5 pt-2.5">
+      <div
+        onPointerDown={onHeaderPointerDown}
+        className="relative flex h-6 shrink-0 items-center justify-center [touch-action:none] cursor-grab active:cursor-grabbing"
+        aria-label="Drag down to close"
+        role="button"
+      >
         <div
           aria-hidden
-          className="absolute left-1/2 top-[10px] h-[4px] w-[38px] -translate-x-1/2 rounded-[2px] bg-divider-strong"
+          className="h-[4px] w-[38px] rounded-[2px] bg-divider-strong"
         />
+      </div>
+      <div className="flex items-center justify-between px-5 pb-1.5 pt-0.5">
         <button
           type="button"
           onClick={onToggleSaved}
-          className={`mt-2.5 rounded-pill border border-divider-strong px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] transition-colors ${
+          className={`rounded-pill border border-divider-strong px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] transition-colors ${
             saved ? "bg-ink text-canvas" : "bg-transparent text-ink"
           }`}
         >
           {saved ? "Saved" : "Save"}
         </button>
-        <Dialog.Close className="mt-2.5 rounded-pill border border-divider-strong bg-transparent px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink">
+        <Dialog.Close className="rounded-pill border border-divider-strong bg-transparent px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink">
           Close
         </Dialog.Close>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-[60px] pt-[14px]">
+      <div className="flex-1 overflow-y-auto px-6 pb-[60px] pt-3">
         {showHero && (
-          <div className="mb-6 overflow-hidden rounded-[18px]">
-            <SkyWindow style={{ aspectRatio: "4/5" }} />
+          <div className="mb-7 -mx-6 overflow-hidden">
+            <HeroMedia
+              imageUrl={view.row.hero_image_url}
+              title={view.row.title}
+              kicker={view.kicker}
+              style={{ aspectRatio: "4/5" }}
+            />
           </div>
         )}
 
-        <Caption className="mb-[14px]">{view.kicker}</Caption>
-
-        <Dialog.Title
-          asChild
-        >
-          <h1 className="mb-6 font-display text-[28px] font-medium leading-[1.08] tracking-[-0.035em] text-ink [text-wrap:balance]">
-            {view.row.title}
-          </h1>
+        <Dialog.Title asChild>
+          <span className="sr-only">{view.row.title}</span>
         </Dialog.Title>
 
         {view.sourceNames.length > 0 && (

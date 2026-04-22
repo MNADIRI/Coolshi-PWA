@@ -50,6 +50,15 @@ body {
   }
 }
 
+@keyframes cs-sky-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }

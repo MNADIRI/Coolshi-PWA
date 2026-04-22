@@ -1,7 +1,7 @@
 "use client";
 
 import type { CardView } from "@/lib/card-format";
-import { SkyWindow } from "@/components/sky/sky";
+import { HeroMedia } from "./hero-media";
 import { hostnameOf } from "@/lib/url";
 import { Caption, Sources } from "./primitives";
 
@@ -24,12 +24,13 @@ function cardShell(children: React.ReactNode, onClick: () => void) {
 export function HeroCard({ view, onOpen }: Props) {
   return cardShell(
     <>
-      <SkyWindow style={{ aspectRatio: "4/5" }} />
-      <div className="px-[22px] pb-6 pt-[22px]">
-        <Caption className="mb-[14px]">{view.kicker}</Caption>
-        <h2 className="mb-[14px] font-display text-[26px] font-semibold leading-[1.08] tracking-[-0.03em] text-ink [text-wrap:balance]">
-          {view.row.title}
-        </h2>
+      <HeroMedia
+        imageUrl={view.row.hero_image_url}
+        title={view.row.title}
+        kicker={view.kicker}
+        style={{ aspectRatio: "4/5" }}
+      />
+      <div className="px-[22px] pb-6 pt-5">
         <p className="mb-[18px] font-text text-[14px] leading-[1.55] text-ink-2 [text-wrap:pretty]">
           {view.row.synthesis}
         </p>
@@ -41,25 +42,28 @@ export function HeroCard({ view, onOpen }: Props) {
 }
 
 export function WideCard({ view, onOpen, flip = false }: Props & { flip?: boolean }) {
-  const image = (
-    <SkyWindow
+  const media = (
+    <HeroMedia
+      imageUrl={view.row.hero_image_url}
+      title={view.row.title}
+      kicker={view.kicker}
+      compact
       className="shrink-0"
-      style={{ flexBasis: "42%", minHeight: 180 }}
+      style={{ flexBasis: "46%", minHeight: 180 }}
     />
   );
   const text = (
     <div className="flex flex-1 flex-col justify-center px-[22px] py-5">
-      <Caption className="mb-[10px]">{view.kicker}</Caption>
-      <h2 className="mb-[10px] font-display text-[18px] font-semibold leading-[1.15] tracking-[-0.025em] text-ink [text-wrap:balance]">
-        {view.row.title}
-      </h2>
+      <p className="mb-3 font-text text-[13px] leading-[1.5] text-ink-2 [text-wrap:pretty]">
+        {view.row.synthesis}
+      </p>
       <Sources items={view.sourceNames} readTime={view.readTime} />
     </div>
   );
   return cardShell(
     <div className="flex items-stretch">
-      {flip ? text : image}
-      {flip ? image : text}
+      {flip ? text : media}
+      {flip ? media : text}
     </div>,
     onOpen,
   );
@@ -68,12 +72,13 @@ export function WideCard({ view, onOpen, flip = false }: Props & { flip?: boolea
 export function SquareCard({ view, onOpen }: Props) {
   return cardShell(
     <>
-      <SkyWindow style={{ aspectRatio: "16/11" }} />
-      <div className="px-5 pb-5 pt-[18px]">
-        <Caption className="mb-[10px]">{view.kicker}</Caption>
-        <h2 className="mb-[10px] font-display text-[19px] font-semibold leading-[1.18] tracking-[-0.025em] text-ink [text-wrap:balance]">
-          {view.row.title}
-        </h2>
+      <HeroMedia
+        imageUrl={view.row.hero_image_url}
+        title={view.row.title}
+        kicker={view.kicker}
+        style={{ aspectRatio: "16/11" }}
+      />
+      <div className="px-5 pb-5 pt-[14px]">
         <p className="mb-[14px] font-text text-[13.5px] leading-[1.5] text-ink-2 [text-wrap:pretty]">
           {view.row.synthesis}
         </p>
@@ -86,16 +91,20 @@ export function SquareCard({ view, onOpen }: Props) {
 
 export function TextCard({ view, onOpen }: Props) {
   return cardShell(
-    <div className="px-[22px] py-[22px]">
-      <Caption className="mb-3">{view.kicker}</Caption>
-      <h2 className="mb-[14px] font-display text-[22px] font-semibold leading-[1.12] tracking-[-0.03em] text-ink [text-wrap:balance]">
-        {view.row.title}
-      </h2>
-      <p className="mb-4 font-text text-[14px] leading-[1.55] text-ink-2 [text-wrap:pretty]">
-        {view.row.synthesis}
-      </p>
-      <Sources items={view.sourceNames} readTime={view.readTime} />
-    </div>,
+    <>
+      <HeroMedia
+        imageUrl={view.row.hero_image_url}
+        title={view.row.title}
+        kicker={view.kicker}
+        style={{ aspectRatio: "3/1.6" }}
+      />
+      <div className="px-[22px] pb-5 pt-4">
+        <p className="mb-3.5 font-text text-[14px] leading-[1.55] text-ink-2 [text-wrap:pretty]">
+          {view.row.synthesis}
+        </p>
+        <Sources items={view.sourceNames} readTime={view.readTime} />
+      </div>
+    </>,
     onOpen,
   );
 }
@@ -140,17 +149,15 @@ export function LinkCard({ view, onOpen }: Props) {
 export function MicroCard({ view, onOpen }: Props) {
   return cardShell(
     <div className="flex h-full flex-col">
-      <SkyWindow style={{ aspectRatio: "1/1.25" }} />
-      <div className="flex flex-1 flex-col px-[14px] pb-4 pt-[14px]">
-        <Caption className="mb-2" style={{ fontSize: 9 }}>
-          {view.kicker}
-        </Caption>
-        <div className="flex-1 font-display text-[14.5px] font-semibold leading-[1.2] tracking-[-0.02em] text-ink [text-wrap:balance]">
-          {view.row.title}
-        </div>
-        <div className="mt-[10px] font-text text-[10.5px] text-ink-3">
-          {view.sourceNames[0] ?? ""} · {view.readTime}
-        </div>
+      <HeroMedia
+        imageUrl={view.row.hero_image_url}
+        title={view.row.title}
+        kicker={view.kicker}
+        compact
+        style={{ aspectRatio: "1/1.25" }}
+      />
+      <div className="px-[14px] pb-3 pt-2.5 font-text text-[10.5px] text-ink-3">
+        {view.sourceNames[0] ?? ""} · {view.readTime}
       </div>
     </div>,
     onOpen,
@@ -173,3 +180,6 @@ export function MicroPair({
     </div>
   );
 }
+
+// Keep Caption exported usage compatible
+export { Caption };

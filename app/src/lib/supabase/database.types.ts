@@ -54,6 +54,17 @@ export type SavedCardRow = {
   saved_at: string;
 };
 
+export type ManualBatchStatus = "in_progress" | "completed" | "failed";
+export type ManualBatchJobRow = {
+  id: string;
+  requested_for_date: string;
+  requested_at: string;
+  status: ManualBatchStatus;
+  batch_id: string | null;
+  error_message: string | null;
+  completed_at: string | null;
+};
+
 export type FeedbackRow = {
   id: string;
   card_id: string;
@@ -142,6 +153,12 @@ export type Database = {
         Row: SavedCardRow;
         Insert: { card_id: string; saved_at?: string };
         Update: Partial<SavedCardRow>;
+        Relationships: [];
+      };
+      manual_batch_jobs: {
+        Row: ManualBatchJobRow;
+        Insert: Partial<ManualBatchJobRow>;
+        Update: Partial<ManualBatchJobRow>;
         Relationships: [];
       };
     };

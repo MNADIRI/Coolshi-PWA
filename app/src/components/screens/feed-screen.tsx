@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { FeedCardRow } from "@/lib/supabase/database.types";
+import type { FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
+import { BatchTrigger } from "@/components/screens/batch-trigger";
 import type { CardView } from "@/lib/card-format";
 import { groupFeed, viewsFromRows } from "@/lib/card-format";
 import { SkyProvider } from "@/components/sky/sky";
@@ -21,6 +22,7 @@ interface Props {
   savedIds: Set<string>;
   useFixtures: boolean;
   onSavedChange: (row: FeedCardRow, saved: boolean) => void;
+  manualJob: ManualBatchJobRow | null;
 }
 
 function todayHeader(): string {
@@ -78,7 +80,7 @@ function endMessage(batchId: string | null): string {
   return pool[idx]!;
 }
 
-export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange }: Props) {
+export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJob }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
 
   const views = useMemo(() => viewsFromRows(rows), [rows]);
@@ -107,9 +109,11 @@ export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange }: Props
     <>
       <div className="px-[18px] pb-10">
         <div className="pb-8 pt-[18px] text-center">
-          <div className="font-text text-[10.5px] font-semibold uppercase tracking-[0.24em] text-ink-2">
-            {headerDate}
-          </div>
+          <BatchTrigger
+            initialJob={manualJob}
+            headerDate={headerDate}
+            useFixtures={useFixtures}
+          />
         </div>
 
         {rows.length === 0 ? (
