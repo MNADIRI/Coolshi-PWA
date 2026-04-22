@@ -43,6 +43,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const THEME_INIT = `(function(){try{var t=localStorage.getItem('coolshi-theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -53,7 +55,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ["--font-text" as string]: `var(--font-space-grotesk), ui-sans-serif, system-ui`,
       }}
     >
-      <body>{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

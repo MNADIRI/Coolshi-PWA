@@ -1,6 +1,7 @@
 "use client";
 
 import { Children, useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 
 export interface TabDef {
   id: string;
@@ -73,8 +74,8 @@ export function TabShell({ tabs, children, initial = 0 }: Props) {
 
   return (
     <div className="relative h-dvh overflow-hidden bg-canvas">
-      {/* Floating pill pager */}
-      <div className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex justify-center pt-[max(14px,env(safe-area-inset-top))]">
+      {/* Floating pill pager + theme toggle */}
+      <div className="pointer-events-none fixed left-0 right-0 top-0 z-40 flex flex-col items-center gap-2 pt-[max(14px,env(safe-area-inset-top))]">
         <div className="pointer-events-auto flex rounded-pill border border-divider bg-paper/75 p-1 backdrop-blur-md backdrop-saturate-150">
           {tabs.map((t, i) => (
             <button
@@ -89,6 +90,7 @@ export function TabShell({ tabs, children, initial = 0 }: Props) {
             </button>
           ))}
         </div>
+        <ThemeToggle />
       </div>
 
       <div
@@ -112,10 +114,10 @@ export function TabShell({ tabs, children, initial = 0 }: Props) {
           {panels.map((panel, i) => (
             <div
               key={i}
-              className="h-full overflow-y-auto overflow-x-hidden"
+              className="h-full overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]"
               style={{
                 width: `${100 / tabs.length}%`,
-                paddingTop: "calc(70px + env(safe-area-inset-top))",
+                paddingTop: "calc(104px + env(safe-area-inset-top))",
                 paddingBottom: "calc(40px + env(safe-area-inset-bottom))",
               }}
             >
