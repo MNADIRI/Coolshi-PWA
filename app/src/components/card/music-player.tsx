@@ -81,8 +81,8 @@ export function MusicPlayerCard({ track = DEFAULT_TRACK }: { track?: DiscoveryTr
                   key={i}
                   className="flex-1 rounded-[0.5px] transition-colors"
                   style={{
-                    height: `${b * 100}%`,
-                    background:
+                    height: `${(b * 100).toFixed(2)}%`,
+                    backgroundColor:
                       i / bars.length < progress
                         ? "var(--color-ink)"
                         : "var(--color-ink4)",
