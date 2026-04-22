@@ -5,6 +5,7 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development",
+  customWorkerDir: "worker",
   fallbacks: {
     document: "/offline.html",
   },

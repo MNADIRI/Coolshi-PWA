@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ManualBatchJobRow } from "@/lib/supabase/database.types";
+import { subscribeToPush } from "@/lib/push-client";
 
 interface Props {
   initialJob: ManualBatchJobRow | null;
@@ -101,6 +102,14 @@ export function BatchTrigger({ initialJob, headerDate, useFixtures }: Props) {
       }
       setJob(data.job);
       startPolling();
+      // Contextual push subscribe — best-effort, non-blocking.
+      void subscribeToPush().then((result) => {
+        if (result.ok) {
+          showToast("we'll ping you when it's ready");
+        } else if (result.reason === "denied") {
+          showToast("notifications off — reopen the app to check");
+        }
+      });
     } catch {
       showToast("network hiccup — try again");
     }

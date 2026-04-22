@@ -97,6 +97,15 @@ create table manual_batch_jobs (
 create unique index manual_batch_jobs_daily_quota
   on manual_batch_jobs(requested_for_date);
 
+create table push_subscriptions (
+  endpoint text primary key,
+  p256dh text not null,
+  auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz
+);
+
 create table agent_runs (
   id uuid primary key default gen_random_uuid(),
   batch_id text not null unique,

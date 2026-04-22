@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { notifyAll, isPushConfigured } from "@/lib/push";
 
 function brusselsToday(): string {
   const now = new Date();
@@ -98,6 +99,12 @@ export async function POST() {
   return NextResponse.json({ job: inserted, trigger });
 }
 
+const COMPLETION_MESSAGES = [
+  "your batch is ready — fresh from the chaos",
+  "curation complete, come see",
+  "done. the morning (or night) reading is served.",
+];
+
 export async function GET() {
   if (process.env.NEXT_PUBLIC_USE_FIXTURES === "1") {
     return NextResponse.json({ job: null });
@@ -109,5 +116,24 @@ export async function GET() {
     .select("*")
     .eq("requested_for_date", today)
     .maybeSingle();
+
+  if (data?.status === "completed" && !data.notified_at && isPushConfigured()) {
+    const { error: claimErr } = await supabase
+      .from("manual_batch_jobs")
+      .update({ notified_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .is("notified_at", null);
+    if (!claimErr) {
+      const msg =
+        COMPLETION_MESSAGES[Math.floor(Math.random() * COMPLETION_MESSAGES.length)]!;
+      await notifyAll({
+        title: "coolshi",
+        body: msg,
+        url: "/feed",
+        tag: "manual-batch",
+      });
+    }
+  }
+
   return NextResponse.json({ job: data ?? null });
 }

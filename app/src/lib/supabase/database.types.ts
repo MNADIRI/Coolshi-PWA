@@ -63,6 +63,7 @@ export type ManualBatchJobRow = {
   batch_id: string | null;
   error_message: string | null;
   completed_at: string | null;
+  notified_at: string | null;
 };
 
 export type FeedbackRow = {
@@ -159,6 +160,33 @@ export type Database = {
         Row: ManualBatchJobRow;
         Insert: Partial<ManualBatchJobRow>;
         Update: Partial<ManualBatchJobRow>;
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent: string | null;
+          created_at: string;
+          last_used_at: string | null;
+        };
+        Insert: {
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent?: string | null;
+          created_at?: string;
+          last_used_at?: string | null;
+        };
+        Update: Partial<{
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent: string | null;
+          created_at: string;
+          last_used_at: string | null;
+        }>;
         Relationships: [];
       };
     };
