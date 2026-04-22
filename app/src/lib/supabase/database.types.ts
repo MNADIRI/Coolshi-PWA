@@ -61,6 +61,18 @@ export type AgentRunRow = {
   ended_at: string | null;
 };
 
+export type SourceRow = {
+  id: string;
+  source_type: string;
+  source_tier: SourceTier | null;
+  name: string;
+  config: Json;
+  is_active: boolean | null;
+  last_fetched_at: string | null;
+  last_error: string | null;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -101,6 +113,15 @@ export type Database = {
           started_at?: string;
         };
         Update: Partial<AgentRunRow>;
+        Relationships: [];
+      };
+      sources: {
+        Row: SourceRow;
+        Insert: Omit<SourceRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<SourceRow>;
         Relationships: [];
       };
     };

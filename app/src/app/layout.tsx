@@ -1,20 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Archivo, Space_Grotesk } from "next/font/google";
 import "@/styles/globals.css";
 
-const inter = Inter({
+const archivo = Archivo({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-archivo",
   display: "swap",
 });
 
-// General Sans isn't on Google Fonts; use Inter 500 as the display face until
-// the user drops a real GeneralSans-Medium.woff2 into public/fonts/.
-const displayFont = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["500"],
-  variable: "--font-general-sans",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-space-grotesk",
   display: "swap",
 });
 
@@ -35,8 +33,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FAFAF7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F0F0E" },
+    { media: "(prefers-color-scheme: light)", color: "#F4F1EA" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E0E0D" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -47,10 +45,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={`${inter.variable} ${displayFont.variable}`}>
-      <body>
-        <ThemeProvider>{children}</ThemeProvider>
-      </body>
+    <html
+      lang="en"
+      className={`${archivo.variable} ${spaceGrotesk.variable}`}
+      style={{
+        ["--font-display" as string]: `var(--font-archivo), ui-sans-serif, system-ui`,
+        ["--font-text" as string]: `var(--font-space-grotesk), ui-sans-serif, system-ui`,
+      }}
+    >
+      <body>{children}</body>
     </html>
   );
 }

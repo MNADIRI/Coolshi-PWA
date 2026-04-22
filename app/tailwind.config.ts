@@ -6,27 +6,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: {
-          primary: "var(--color-bg-primary)",
-          surface: "var(--color-surface)",
-        },
-        text: {
-          primary: "var(--color-text-primary)",
-          secondary: "var(--color-text-secondary)",
-        },
-        accent: {
-          like: "var(--color-accent-like)",
-          dislike: "var(--color-accent-dislike)",
-        },
+        canvas: "var(--color-canvas)",
+        paper: "var(--color-paper)",
+        ink: "var(--color-ink)",
+        "ink-2": "var(--color-ink2)",
+        "ink-3": "var(--color-ink3)",
+        "ink-4": "var(--color-ink4)",
         divider: "var(--color-divider)",
+        "divider-strong": "var(--color-divider-strong)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "ui-sans-serif", "system-ui"],
-        body: ["var(--font-body)", "ui-sans-serif", "system-ui"],
+        display: ["var(--font-display)"],
+        text: ["var(--font-text)"],
       },
       borderRadius: {
-        card: "16px",
-        btn: "8px",
+        card: "var(--radius-card)",
+        pill: "var(--radius-pill)",
+        btn: "var(--radius-btn)",
       },
     },
   },
