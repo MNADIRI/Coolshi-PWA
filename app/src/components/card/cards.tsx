@@ -2,6 +2,7 @@
 
 import type { CardView } from "@/lib/card-format";
 import { SkyWindow } from "@/components/sky/sky";
+import { hostnameOf } from "@/lib/url";
 import { Caption, Sources } from "./primitives";
 
 interface Props {
@@ -101,8 +102,21 @@ export function TextCard({ view, onOpen }: Props) {
 
 export function LinkCard({ view, onOpen }: Props) {
   const publication = view.sourceNames[0] ?? "Link";
-  return cardShell(
-    <div className="flex items-center gap-[14px] px-[18px] py-4">
+  const firstUrl = view.row.sources[0]?.url ?? "";
+  const host = hostnameOf(firstUrl);
+  return (
+    <a
+      href={firstUrl || "#"}
+      onClick={(e) => {
+        if (!firstUrl) {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      target={firstUrl ? "_blank" : undefined}
+      rel={firstUrl ? "noopener noreferrer" : undefined}
+      className="flex cursor-pointer items-center gap-[14px] overflow-hidden rounded-card border border-divider bg-paper px-[18px] py-4 transition-transform active:scale-[0.99]"
+    >
       <div
         className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-btn bg-ink text-[16px] text-canvas"
         aria-hidden
@@ -113,12 +127,13 @@ export function LinkCard({ view, onOpen }: Props) {
         <div className="mb-1 font-display text-[15px] font-semibold leading-[1.3] tracking-[-0.02em] text-ink [text-wrap:pretty]">
           {view.row.title}
         </div>
-        <div className="font-text text-[11px] text-ink-3">
-          {publication} · {view.readTime}
+        <div className="truncate font-text text-[11px] text-ink-3">
+          {publication}
+          {host && publication.toLowerCase() !== host.toLowerCase() ? ` · ${host}` : ""} ·{" "}
+          {view.readTime}
         </div>
       </div>
-    </div>,
-    onOpen,
+    </a>
   );
 }
 

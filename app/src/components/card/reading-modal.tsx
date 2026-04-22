@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useState } from "react";
 import type { CardView } from "@/lib/card-format";
 import { SkyWindow } from "@/components/sky/sky";
+import { hostnameOf } from "@/lib/url";
 import { Caption, Sources } from "./primitives";
 
 interface Props {
@@ -105,23 +106,28 @@ function ModalBody({
         {view.row.sources.length > 0 && (
           <div className="mt-9">
             <Caption className="mb-[14px]">Sources</Caption>
-            {view.row.sources.map((source) => (
-              <a
-                key={source.url}
-                href={source.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 border-t border-divider py-[14px]"
-              >
-                <div className="flex-1">
-                  <div className="font-display text-[14px] font-medium tracking-[-0.015em] text-ink">
-                    {source.name}
+            {view.row.sources.map((source) => {
+              const host = hostnameOf(source.url);
+              return (
+                <a
+                  key={source.url}
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 border-t border-divider py-[14px]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-[14px] font-medium tracking-[-0.015em] text-ink">
+                      {source.name}
+                    </div>
+                    <div className="truncate font-text text-[11px] text-ink-3">
+                      {host || source.url}
+                    </div>
                   </div>
-                  <div className="font-text text-[11px] text-ink-3">Primary coverage</div>
-                </div>
-                <div className="text-ink-3">↗</div>
-              </a>
-            ))}
+                  <div className="text-ink-3">↗</div>
+                </a>
+              );
+            })}
           </div>
         )}
       </div>

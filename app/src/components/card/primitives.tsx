@@ -29,7 +29,16 @@ export function Sources({
   className?: string;
 }) {
   if (!items.length) return null;
-  const text = readTime ? `${items.join("  ·  ")}  ·  ${readTime}` : items.join("  ·  ");
+  // Preserve order but dedupe case-insensitive.
+  const seen = new Set<string>();
+  const uniq: string[] = [];
+  for (const name of items) {
+    const k = name.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    uniq.push(name);
+  }
+  const text = readTime ? `${uniq.join("  ·  ")}  ·  ${readTime}` : uniq.join("  ·  ");
   return (
     <div
       className={`font-text text-[11px] font-medium tracking-[0.02em] text-ink-3 ${className ?? ""}`}
