@@ -127,22 +127,14 @@ async function loadSavedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
   return rows.map((r) => r.feed_cards).filter((c): c is FeedCardRow => c !== null);
 }
 
-async function loadSavedIds(useFixtures: boolean): Promise<string[]> {
-  if (useFixtures) return [];
-  const supabase = await getServerSupabase();
-  const { data, error } = await supabase.from("saved_cards").select("card_id");
-  if (error) throw error;
-  return (data ?? []).map((r) => r.card_id);
-}
 
 export default async function FeedPage() {
   const useFixtures = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
-  const [feedRows, brief, library, savedCards, savedIds] = await Promise.all([
+  const [feedRows, brief, library, savedCards] = await Promise.all([
     loadFeedCards(useFixtures),
     loadBrief(useFixtures),
     loadLibrary(useFixtures),
     loadSavedCards(useFixtures),
-    loadSavedIds(useFixtures),
   ]);
 
   return (
@@ -151,7 +143,6 @@ export default async function FeedPage() {
       brief={brief}
       library={library}
       savedCards={savedCards}
-      savedIds={savedIds}
       useFixtures={useFixtures}
     />
   );

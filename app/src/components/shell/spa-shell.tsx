@@ -23,17 +23,12 @@ interface Props {
   brief: BriefRow | null;
   library: LibrarySource[];
   savedCards: FeedCardRow[];
-  savedIds: string[];
   useFixtures: boolean;
 }
 
-export function SpaShell({ feedRows, brief, library, savedCards, savedIds, useFixtures }: Props) {
+export function SpaShell({ feedRows, brief, library, savedCards, useFixtures }: Props) {
   const [saved, setSaved] = useState<FeedCardRow[]>(savedCards);
-  const savedIdSet = useMemo(() => {
-    const s = new Set(savedIds);
-    for (const c of saved) s.add(c.id);
-    return s;
-  }, [saved, savedIds]);
+  const savedIdSet = useMemo(() => new Set(saved.map((c) => c.id)), [saved]);
 
   const onSavedChange = useCallback(
     (row: FeedCardRow, isSaved: boolean) => {
