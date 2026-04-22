@@ -10,19 +10,14 @@ import { ReadingModal } from "@/components/card/reading-modal";
 
 interface Props {
   saved: FeedCardRow[];
+  savedIds: Set<string>;
   useFixtures: boolean;
+  onSavedChange: (row: FeedCardRow, saved: boolean) => void;
 }
 
-export function SavedScreen({ saved, useFixtures }: Props) {
+export function SavedScreen({ saved, savedIds, useFixtures, onSavedChange }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
-  const [rows, setRows] = useState<FeedCardRow[]>(saved);
-  const views = viewsFromRows(rows);
-  const savedIds = new Set(rows.map((r) => r.id));
-
-  const handleSavedChange = (cardId: string, isSaved: boolean) => {
-    if (isSaved) return;
-    setRows((prev) => prev.filter((r) => r.id !== cardId));
-  };
+  const views = viewsFromRows(saved);
 
   return (
     <>
@@ -79,7 +74,7 @@ export function SavedScreen({ saved, useFixtures }: Props) {
         savedIds={savedIds}
         useFixtures={useFixtures}
         onOpenChange={(o) => !o && setModalView(null)}
-        onSavedChange={handleSavedChange}
+        onSavedChange={onSavedChange}
       />
     </>
   );

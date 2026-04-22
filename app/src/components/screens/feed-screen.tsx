@@ -20,6 +20,7 @@ interface Props {
   rows: FeedCardRow[];
   savedIds: Set<string>;
   useFixtures: boolean;
+  onSavedChange: (row: FeedCardRow, saved: boolean) => void;
 }
 
 function todayHeader(): string {
@@ -77,18 +78,8 @@ function endMessage(batchId: string | null): string {
   return pool[idx]!;
 }
 
-export function FeedScreen({ rows, savedIds: initialSavedIds, useFixtures }: Props) {
+export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
-  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(initialSavedIds));
-
-  const onSavedChange = useCallback((cardId: string, isSaved: boolean) => {
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (isSaved) next.add(cardId);
-      else next.delete(cardId);
-      return next;
-    });
-  }, []);
 
   const views = useMemo(() => viewsFromRows(rows), [rows]);
   const grouped = useMemo(() => groupFeed(views), [views]);

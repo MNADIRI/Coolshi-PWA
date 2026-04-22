@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
 import type { BriefRow, FeedCardRow } from "@/lib/supabase/database.types";
 import { TabShell, type TabDef } from "@/components/shell/tab-pager";
 import { FeedScreen } from "@/components/screens/feed-screen";
@@ -27,13 +28,42 @@ interface Props {
 }
 
 export function SpaShell({ feedRows, brief, library, savedCards, savedIds, useFixtures }: Props) {
-  const idSet = new Set(savedIds);
+  const [saved, setSaved] = useState<FeedCardRow[]>(savedCards);
+  const savedIdSet = useMemo(() => {
+    const s = new Set(savedIds);
+    for (const c of saved) s.add(c.id);
+    return s;
+  }, [saved, savedIds]);
+
+  const onSavedChange = useCallback(
+    (row: FeedCardRow, isSaved: boolean) => {
+      setSaved((prev) => {
+        if (isSaved) {
+          if (prev.some((r) => r.id === row.id)) return prev;
+          return [row, ...prev];
+        }
+        return prev.filter((r) => r.id !== row.id);
+      });
+    },
+    [],
+  );
+
   return (
     <TabShell tabs={TABS}>
-      <FeedScreen rows={feedRows} savedIds={idSet} useFixtures={useFixtures} />
+      <FeedScreen
+        rows={feedRows}
+        savedIds={savedIdSet}
+        useFixtures={useFixtures}
+        onSavedChange={onSavedChange}
+      />
       <LibraryScreen sources={library} />
       <BriefScreen brief={brief} readOnly={useFixtures} />
-      <SavedScreen saved={savedCards} useFixtures={useFixtures} />
+      <SavedScreen
+        saved={saved}
+        savedIds={savedIdSet}
+        useFixtures={useFixtures}
+        onSavedChange={onSavedChange}
+      />
     </TabShell>
   );
 }

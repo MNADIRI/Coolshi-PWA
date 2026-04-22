@@ -3,6 +3,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useEffect, useState } from "react";
 import type { CardView } from "@/lib/card-format";
+import type { FeedCardRow } from "@/lib/supabase/database.types";
 import { SkyWindow } from "@/components/sky/sky";
 import { hostnameOf } from "@/lib/url";
 import { Caption, Sources } from "./primitives";
@@ -12,7 +13,7 @@ interface Props {
   savedIds?: Set<string>;
   useFixtures?: boolean;
   onOpenChange: (open: boolean) => void;
-  onSavedChange?: (cardId: string, saved: boolean) => void;
+  onSavedChange?: (row: FeedCardRow, saved: boolean) => void;
 }
 
 export function ReadingModal({
@@ -32,9 +33,10 @@ export function ReadingModal({
 
   const toggleSaved = async () => {
     if (!view || pending) return;
+    const row = view.row;
     const next = !saved;
     setSaved(next);
-    onSavedChange?.(view.row.id, next);
+    onSavedChange?.(row, next);
     if (useFixtures) return;
     setPending(true);
     try {
@@ -42,16 +44,16 @@ export function ReadingModal({
         await fetch("/api/save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ card_id: view.row.id }),
+          body: JSON.stringify({ card_id: row.id }),
         });
       } else {
-        await fetch(`/api/save?card_id=${encodeURIComponent(view.row.id)}`, {
+        await fetch(`/api/save?card_id=${encodeURIComponent(row.id)}`, {
           method: "DELETE",
         });
       }
     } catch {
       setSaved(!next);
-      onSavedChange?.(view.row.id, !next);
+      onSavedChange?.(row, !next);
     } finally {
       setPending(false);
     }
