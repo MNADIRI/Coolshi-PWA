@@ -22,6 +22,7 @@ export type FeedCardRow = {
   id: string;
   title: string;
   synthesis: string;
+  long_form: string | null;
   sources: CardSource[];
   divergence_notes: string | null;
   tags: string[] | null;
@@ -34,10 +35,21 @@ export type FeedCardRow = {
 
 export type BriefRow = {
   id: string;
-  content: string;
+  content: string | null;
   anchor_articles: Json;
   is_active: boolean;
+  location: string | null;
+  international_scope: number | null;
+  interests: string | null;
+  preferences: string | null;
+  must_not_miss: string | null;
   created_at: string;
+  updated_at: string;
+};
+
+export type SavedCardRow = {
+  card_id: string;
+  saved_at: string;
 };
 
 export type FeedbackRow = {
@@ -122,6 +134,12 @@ export type Database = {
           created_at?: string;
         };
         Update: Partial<SourceRow>;
+        Relationships: [];
+      };
+      saved_cards: {
+        Row: SavedCardRow;
+        Insert: { card_id: string; saved_at?: string };
+        Update: Partial<SavedCardRow>;
         Relationships: [];
       };
     };

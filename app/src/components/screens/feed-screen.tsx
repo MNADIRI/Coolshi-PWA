@@ -18,6 +18,7 @@ import { ReadingModal } from "@/components/card/reading-modal";
 
 interface Props {
   rows: FeedCardRow[];
+  savedIds: Set<string>;
   useFixtures: boolean;
 }
 
@@ -35,13 +36,65 @@ function nextBriefLabel(): string {
   return "07:00";
 }
 
-export function FeedScreen({ rows, useFixtures }: Props) {
+const MORNING_POOL = [
+  "next batch at 1pm, go outside",
+  "see you after lunch — the web will still be there",
+  "that's your morning. touch grass.",
+  "reading done. go make coffee for a human.",
+];
+const EVENING_POOL = [
+  "next batch tomorrow morning, go hang out with humans",
+  "that's the day. close the phone.",
+  "the web will still be there tomorrow",
+  "evening batch done. go cook something.",
+];
+const GENERIC_POOL = [
+  "enough internet for today",
+  "you are now fully briefed. log off.",
+  "well read. go live.",
+];
+
+function slotFromBatch(batchId: string | null): "morning" | "evening" {
+  // batch_id is YYYY-MM-DD-HH in UTC; morning cron = 05 UTC, afternoon = 11 UTC.
+  // Anything before 10 UTC we treat as morning, else evening.
+  if (!batchId) {
+    return new Date().getUTCHours() < 10 ? "morning" : "evening";
+  }
+  const hh = parseInt(batchId.slice(-2), 10);
+  return Number.isFinite(hh) && hh < 10 ? "morning" : "evening";
+}
+
+function stringHash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function endMessage(batchId: string | null): string {
+  const slot = slotFromBatch(batchId);
+  const pool = [...(slot === "morning" ? MORNING_POOL : EVENING_POOL), ...GENERIC_POOL];
+  const idx = stringHash(batchId ?? new Date().toISOString().slice(0, 13)) % pool.length;
+  return pool[idx]!;
+}
+
+export function FeedScreen({ rows, savedIds: initialSavedIds, useFixtures }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(initialSavedIds));
+
+  const onSavedChange = useCallback((cardId: string, isSaved: boolean) => {
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.add(cardId);
+      else next.delete(cardId);
+      return next;
+    });
+  }, []);
 
   const views = useMemo(() => viewsFromRows(rows), [rows]);
   const grouped = useMemo(() => groupFeed(views), [views]);
   const headerDate = useMemo(todayHeader, []);
   const nextBrief = useMemo(nextBriefLabel, []);
+  const endText = useMemo(() => endMessage(rows[0]?.batch_id ?? null), [rows]);
 
   const recordOpen = useCallback(
     (view: CardView) => {
@@ -111,17 +164,20 @@ export function FeedScreen({ rows, useFixtures }: Props) {
         {rows.length > 0 && (
           <div className="mt-[60px] pb-10 pt-10 text-center">
             <div className="mx-auto mb-6 h-[40px] w-px bg-divider-strong" />
-            <div className="mb-3 font-display text-[22px] font-medium tracking-[-0.03em] text-ink">
-              That&rsquo;s the morning.
-            </div>
-            <div className="font-text text-[11px] font-medium uppercase tracking-[0.14em] text-ink-3">
-              Next briefing · {nextBrief}
+            <div className="font-display text-[22px] font-medium leading-[1.2] tracking-[-0.03em] text-ink [text-wrap:balance]">
+              {endText}
             </div>
           </div>
         )}
       </div>
 
-      <ReadingModal view={modalView} onOpenChange={(o) => !o && setModalView(null)} />
+      <ReadingModal
+        view={modalView}
+        savedIds={savedIds}
+        useFixtures={useFixtures}
+        onOpenChange={(o) => !o && setModalView(null)}
+        onSavedChange={onSavedChange}
+      />
     </>
   );
 }

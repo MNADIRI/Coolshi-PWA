@@ -21,17 +21,19 @@ interface Props {
   feedRows: FeedCardRow[];
   brief: BriefRow | null;
   library: LibrarySource[];
-  recentForSaved: FeedCardRow[];
+  savedCards: FeedCardRow[];
+  savedIds: string[];
   useFixtures: boolean;
 }
 
-export function SpaShell({ feedRows, brief, library, recentForSaved, useFixtures }: Props) {
+export function SpaShell({ feedRows, brief, library, savedCards, savedIds, useFixtures }: Props) {
+  const idSet = new Set(savedIds);
   return (
     <TabShell tabs={TABS}>
-      <FeedScreen rows={feedRows} useFixtures={useFixtures} />
+      <FeedScreen rows={feedRows} savedIds={idSet} useFixtures={useFixtures} />
       <LibraryScreen sources={library} />
       <BriefScreen brief={brief} readOnly={useFixtures} />
-      <SavedScreen recent={recentForSaved} />
+      <SavedScreen saved={savedCards} useFixtures={useFixtures} />
     </TabShell>
   );
 }

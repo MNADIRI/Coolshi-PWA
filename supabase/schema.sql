@@ -5,10 +5,16 @@ create extension if not exists vector;
 
 create table briefs (
   id uuid primary key default gen_random_uuid(),
-  content text not null,
+  content text,
   anchor_articles jsonb,
   is_active boolean default true,
-  created_at timestamptz default now()
+  location text,
+  international_scope smallint check (international_scope between 0 and 100),
+  interests text,
+  preferences text,
+  must_not_miss text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 create table sources (
@@ -46,6 +52,7 @@ create table feed_cards (
   id uuid primary key default gen_random_uuid(),
   title text not null check (length(title) <= 100),
   synthesis text not null check (length(synthesis) <= 400),
+  long_form text,
   sources jsonb not null,
   divergence_notes text,
   tags text[],
@@ -69,6 +76,11 @@ create table feedback (
 );
 
 create index feedback_card_idx on feedback(card_id);
+
+create table saved_cards (
+  card_id uuid primary key references feed_cards(id) on delete cascade,
+  saved_at timestamptz not null default now()
+);
 
 create table agent_runs (
   id uuid primary key default gen_random_uuid(),

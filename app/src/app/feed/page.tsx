@@ -22,23 +22,16 @@ const HUE_SEQUENCE: PastelHue[] = [
 
 const FIXTURE_BRIEF: BriefRow = {
   id: "fx-brief",
-  content: `# Personal brief (fixture)
-
-## Layer 1 — Domains of interest
-
-Applied **AI** (models, agents, products), **radiology** (clinical imaging, computer-aided diagnosis), **tech news** (platform shifts, policy), **political and economic news** (monetary policy, macro, financial regulation).
-
-## Layer 2 — Sources
-
-arXiv cs.AI, Stratechery, FT, Nature, Radiology, Hacker News, ECB and Fed press releases.
-
-## Layer 3 — Tone
-
-Technical and expert. Favor density and crisp framing over hand-holding.
-`,
+  content: null,
   anchor_articles: [],
   is_active: true,
+  location: "Brussels, Belgium",
+  international_scope: 70,
+  interests: "Applied AI, radiology, tech and platform news, monetary policy, macro.",
+  preferences: "Technical and expert tone. Density over hand-holding.",
+  must_not_miss: "Major AI model releases; ECB and Fed decisions; landmark radiology clinical trials.",
   created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
 };
 
 async function loadFeedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
@@ -120,25 +113,36 @@ async function loadLibrary(useFixtures: boolean): Promise<LibrarySource[]> {
   }));
 }
 
-async function loadRecentForSaved(useFixtures: boolean): Promise<FeedCardRow[]> {
-  if (useFixtures) return fixtureCards.slice(0, 4);
+async function loadSavedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
+  if (useFixtures) return [];
   const supabase = await getServerSupabase();
   const { data, error } = await supabase
-    .from("feed_cards")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(6);
+    .from("saved_cards")
+    .select("card_id, saved_at, feed_cards(*)")
+    .order("saved_at", { ascending: false })
+    .limit(200);
   if (error) throw error;
-  return data ?? [];
+  type Row = { card_id: string; saved_at: string; feed_cards: FeedCardRow | null };
+  const rows = (data ?? []) as unknown as Row[];
+  return rows.map((r) => r.feed_cards).filter((c): c is FeedCardRow => c !== null);
+}
+
+async function loadSavedIds(useFixtures: boolean): Promise<string[]> {
+  if (useFixtures) return [];
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase.from("saved_cards").select("card_id");
+  if (error) throw error;
+  return (data ?? []).map((r) => r.card_id);
 }
 
 export default async function FeedPage() {
   const useFixtures = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
-  const [feedRows, brief, library, recentForSaved] = await Promise.all([
+  const [feedRows, brief, library, savedCards, savedIds] = await Promise.all([
     loadFeedCards(useFixtures),
     loadBrief(useFixtures),
     loadLibrary(useFixtures),
-    loadRecentForSaved(useFixtures),
+    loadSavedCards(useFixtures),
+    loadSavedIds(useFixtures),
   ]);
 
   return (
@@ -146,7 +150,8 @@ export default async function FeedPage() {
       feedRows={feedRows}
       brief={brief}
       library={library}
-      recentForSaved={recentForSaved}
+      savedCards={savedCards}
+      savedIds={savedIds}
       useFixtures={useFixtures}
     />
   );
