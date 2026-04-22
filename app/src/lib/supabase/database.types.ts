@@ -30,6 +30,8 @@ export type FeedCardRow = {
   importance_score: number | null;
   batch_id: string;
   hero_image_url: string | null;
+  is_reserve: boolean;
+  released_at: string | null;
   created_at: string;
 };
 

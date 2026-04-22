@@ -24,20 +24,28 @@ else comes from the brief.
 2. **Verification bar.** `card_type='news'`: min 1 verified source.
    `card_type='deep_dive'`: min 2 verified sources. "Verified" = a
    WebFetched body ≥300 chars, or a `raw_items` row the worker captured.
-3. **Size.** 15–50 cards per run. Below 15 is allowed only if both
-   `raw_items` and web research are dry — and you must say so in
-   `agent_runs.findings.notes`.
-4. **Card type.** Max 1 `deep_dive` per run (the single most substantial
-   story). Max 3 cards with `importance_score` 9 or 10.
+3. **Size.** The batch has two tracks:
+   - **Main tier (is_reserve=false)**: 15–30 cards, shown to the user on
+     arrival.
+   - **Reserve tier (is_reserve=true)**: 8–20 additional cards written
+     same run, same batch_id, but hidden until the user manually
+     releases them. The user has a once-a-day "pull reserves" tap that
+     flips this flag.
+   Both tiers are fully written (title + synthesis + long_form +
+   sources). Reserves are not dregs — they are the next tier down of
+   quality cards that were still worth writing but didn't fit the main
+   batch's balance or cadence. If you can only produce 15 strong cards,
+   skip the reserve tier — don't pad.
+4. **Card type.** Max 1 `deep_dive` per run across both tiers combined.
+   Max 3 cards with `importance_score` 9 or 10 across both tiers.
 5. **48h redundancy.** Before writing, SELECT title/tags/synthesis from
    `feed_cards` where `created_at > now() - interval '48 hours'` and
    reject candidates that restate those. A genuine new development is
    OK if you frame what's new.
-6. **Continuity.** Topics you *considered* but did *not ship* must NOT
-   be excluded next run on redundancy grounds. Keep them in
-   `agent_runs.findings.shelved_candidates` so future runs pick them up.
-   A topic is "done" only after it has actually been shipped as a
-   `feed_card`.
+6. **Continuity.** Topics you *considered* but did *not ship* (neither
+   main nor reserve) must NOT be excluded next run on redundancy grounds.
+   Keep them in `agent_runs.findings.shelved_candidates` so future runs
+   pick them up.
 7. **Dual format per card.** Every card has BOTH a short `synthesis` (for
    the feed swipe) AND a `long_form` (for the reading modal). They serve
    different reading modes — do not copy-paste between them.
@@ -198,7 +206,7 @@ For each cluster that will become a card:
 
 Never copy-paste between synthesis and long_form.
 
-## Phase 6 — Select and rank (brief-driven)
+## Phase 6 — Select, rank, and split into main vs reserve
 
 This phase is entirely brief-driven. There is no hardcoded preference
 for "primary sources" or "density" here — apply only what the brief
@@ -224,13 +232,25 @@ Rank candidates via:
 9. **Domain balance**: don't let one interest eat the whole batch
    unless the brief says to.
 
-Target 15–50 cards. Ship fewer rather than pad with low-fit material.
+Then split the ranked list into two tiers:
 
-`importance_score`:
-- 10: once-a-quarter must-read in the user's world
-- 9: top 3 of today
-- 7–8: strong, domain-critical for this brief
-- 5–6: worth the swipe
+- **Main (top 15–30)**: the cards the user sees immediately at arrival.
+  These represent the batch's clearest, most time-sensitive, most
+  on-brief picks. Take the top-ranked items. Aim for domain balance and
+  a small mix of card types.
+- **Reserve (next 8–20)**: cards that were ranked below the main cutoff
+  but are still genuinely worth reading — the "next tier" stories, the
+  tangents, the less-urgent but interesting angles. The user pulls
+  these on demand when they want a second helping.
+
+Everything below ~importance 5 is dropped (not written). Quality floor
+is absolute.
+
+`importance_score` across both tiers:
+- 10: once-a-quarter must-read in the user's world (main tier)
+- 9: top 3 of today (main tier)
+- 7–8: strong, domain-critical (main or reserve)
+- 5–6: worth the swipe (reserve, mostly)
 - 1–4: do not ship
 
 ## Phase 7 — Card type
@@ -241,11 +261,19 @@ Target 15–50 cards. Ship fewer rather than pad with low-fit material.
 
 ## Phase 8 — Write
 
+Set `is_reserve=true` for the reserve tier, `is_reserve=false` (or omit
+— default false) for main. Keep both tiers in the same statement so the
+batch is atomic.
+
 ```sql
 INSERT INTO feed_cards
   (title, synthesis, long_form, sources, divergence_notes, tags,
-   card_type, importance_score, batch_id)
-VALUES (...), (...), ...;
+   card_type, importance_score, batch_id, is_reserve)
+VALUES
+  -- main tier
+  ('...', '...', '...', '[...]'::jsonb, NULL, ARRAY['...'], 'news', 9, '2026-04-22-14', false),
+  -- reserve tier
+  ('...', '...', '...', '[...]'::jsonb, NULL, ARRAY['...'], 'news', 6, '2026-04-22-14', true);
 ```
 
 ## Phase 9 — Mark processed

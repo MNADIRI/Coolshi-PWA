@@ -23,6 +23,7 @@ interface Props {
   useFixtures: boolean;
   onSavedChange: (row: FeedCardRow, saved: boolean) => void;
   manualJob: ManualBatchJobRow | null;
+  reserveCount: number;
 }
 
 function todayHeader(): string {
@@ -80,7 +81,7 @@ function endMessage(batchId: string | null): string {
   return pool[idx]!;
 }
 
-export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJob }: Props) {
+export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJob, reserveCount }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
 
   const views = useMemo(() => viewsFromRows(rows), [rows]);
@@ -111,6 +112,7 @@ export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJ
         <div className="pb-8 pt-[18px] text-center">
           <BatchTrigger
             initialJob={manualJob}
+            initialReserveCount={reserveCount}
             headerDate={headerDate}
             useFixtures={useFixtures}
           />

@@ -63,11 +63,14 @@ create table feed_cards (
   batch_id text not null,
   hero_image_url text,
   embedding vector(1024),
+  is_reserve boolean not null default false,
+  released_at timestamptz,
   created_at timestamptz default now()
 );
 
 create index feed_cards_batch_idx on feed_cards(batch_id);
 create index feed_cards_created_at_idx on feed_cards(created_at desc);
+create index feed_cards_reserve_idx on feed_cards(batch_id, is_reserve);
 
 create table feedback (
   id uuid primary key default gen_random_uuid(),

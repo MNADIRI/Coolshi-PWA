@@ -51,6 +51,7 @@ async function loadFeedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
     .from("feed_cards")
     .select("*")
     .eq("batch_id", latest.batch_id)
+    .eq("is_reserve", false)
     .order("importance_score", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -159,6 +160,16 @@ async function loadTodayManualJob(useFixtures: boolean): Promise<ManualBatchJobR
   return data ?? null;
 }
 
+async function loadReserveCount(useFixtures: boolean): Promise<number> {
+  if (useFixtures) return 0;
+  const supabase = await getServerSupabase();
+  const { count } = await supabase
+    .from("feed_cards")
+    .select("id", { count: "exact", head: true })
+    .eq("is_reserve", true);
+  return count ?? 0;
+}
+
 async function loadSavedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
   if (useFixtures) return [];
   const supabase = await getServerSupabase();
@@ -176,12 +187,13 @@ async function loadSavedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
 
 export default async function FeedPage() {
   const useFixtures = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
-  const [feedRows, brief, library, savedCards, manualJob] = await Promise.all([
+  const [feedRows, brief, library, savedCards, manualJob, reserveCount] = await Promise.all([
     loadFeedCards(useFixtures),
     loadBrief(useFixtures),
     loadLibrary(useFixtures),
     loadSavedCards(useFixtures),
     loadTodayManualJob(useFixtures),
+    loadReserveCount(useFixtures),
   ]);
 
   return (
@@ -191,6 +203,7 @@ export default async function FeedPage() {
       library={library}
       savedCards={savedCards}
       manualJob={manualJob}
+      reserveCount={reserveCount}
       useFixtures={useFixtures}
     />
   );

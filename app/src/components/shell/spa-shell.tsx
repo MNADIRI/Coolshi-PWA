@@ -24,10 +24,11 @@ interface Props {
   library: LibrarySource[];
   savedCards: FeedCardRow[];
   manualJob: ManualBatchJobRow | null;
+  reserveCount: number;
   useFixtures: boolean;
 }
 
-export function SpaShell({ feedRows, brief, library, savedCards, manualJob, useFixtures }: Props) {
+export function SpaShell({ feedRows, brief, library, savedCards, manualJob, reserveCount, useFixtures }: Props) {
   const [saved, setSaved] = useState<FeedCardRow[]>(savedCards);
   const savedIdSet = useMemo(() => new Set(saved.map((c) => c.id)), [saved]);
 
@@ -52,6 +53,7 @@ export function SpaShell({ feedRows, brief, library, savedCards, manualJob, useF
         useFixtures={useFixtures}
         onSavedChange={onSavedChange}
         manualJob={manualJob}
+        reserveCount={reserveCount}
       />
       <LibraryScreen sources={library} />
       <BriefScreen brief={brief} readOnly={useFixtures} />
