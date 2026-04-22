@@ -27,6 +27,8 @@ const FIXTURE_BRIEF: BriefRow = {
   is_active: true,
   location: "Brussels, Belgium",
   international_scope: 70,
+  recency_days: 70,
+  expertise_level: 65,
   interests: "Applied AI, radiology, tech and platform news, monetary policy, macro.",
   preferences: "Technical and expert tone. Density over hand-holding.",
   must_not_miss: "Major AI model releases; ECB and Fed decisions; landmark radiology clinical trials.",

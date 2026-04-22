@@ -40,6 +40,8 @@ export type BriefRow = {
   is_active: boolean;
   location: string | null;
   international_scope: number | null;
+  recency_days: number | null;
+  expertise_level: number | null;
   interests: string | null;
   preferences: string | null;
   must_not_miss: string | null;

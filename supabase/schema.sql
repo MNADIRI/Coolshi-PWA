@@ -10,6 +10,8 @@ create table briefs (
   is_active boolean default true,
   location text,
   international_scope smallint check (international_scope between 0 and 100),
+  recency_days smallint check (recency_days between 0 and 100),
+  expertise_level smallint check (expertise_level between 0 and 100),
   interests text,
   preferences text,
   must_not_miss text,

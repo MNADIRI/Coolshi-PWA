@@ -16,6 +16,8 @@ const WELCOME =
 export function BriefScreen({ brief, readOnly }: Props) {
   const [location, setLocation] = useState(brief?.location ?? "");
   const [scope, setScope] = useState<number>(brief?.international_scope ?? 50);
+  const [recency, setRecency] = useState<number>(brief?.recency_days ?? 60);
+  const [expertise, setExpertise] = useState<number>(brief?.expertise_level ?? 50);
   const [interests, setInterests] = useState(brief?.interests ?? "");
   const [preferences, setPreferences] = useState(brief?.preferences ?? "");
   const [mustNotMiss, setMustNotMiss] = useState(brief?.must_not_miss ?? "");
@@ -32,6 +34,8 @@ export function BriefScreen({ brief, readOnly }: Props) {
           .update({
             location: location.trim() || null,
             international_scope: scope,
+            recency_days: recency,
+            expertise_level: expertise,
             interests: interests.trim() || null,
             preferences: preferences.trim() || null,
             must_not_miss: mustNotMiss.trim() || null,
@@ -91,6 +95,42 @@ export function BriefScreen({ brief, readOnly }: Props) {
               <span>local</span>
               <span className="text-ink">{scope}</span>
               <span>whole universe</span>
+            </div>
+          </Field>
+
+          <Field label="Recency of context">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={recency}
+              onChange={(e) => setRecency(Number(e.target.value))}
+              disabled={readOnly}
+              className="w-full accent-ink"
+            />
+            <div className="mt-1 flex justify-between font-text text-[10.5px] uppercase tracking-[0.14em] text-ink-3">
+              <span>last year</span>
+              <span className="text-ink">{recency}</span>
+              <span>last days</span>
+            </div>
+          </Field>
+
+          <Field label="Expertise level of content">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={expertise}
+              onChange={(e) => setExpertise(Number(e.target.value))}
+              disabled={readOnly}
+              className="w-full accent-ink"
+            />
+            <div className="mt-1 flex justify-between font-text text-[10.5px] uppercase tracking-[0.14em] text-ink-3">
+              <span>general</span>
+              <span className="text-ink">{expertise}</span>
+              <span>very niche</span>
             </div>
           </Field>
 
