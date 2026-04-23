@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getServerSupabase } from "@/lib/supabase/server";
 
-export async function signInWithMagicLink(
+export async function sendSignInCode(
   email: string,
   next: string,
-): Promise<{ error?: string } | void> {
+): Promise<{ ok: true } | { error: string }> {
   const supabase = await getServerSupabase();
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
@@ -32,8 +32,22 @@ export async function signInWithMagicLink(
     }
     return { error: error.message };
   }
+  return { ok: true };
+}
 
-  redirect(`/login?sent=1&next=${encodeURIComponent(next)}`);
+export async function verifySignInCode(
+  email: string,
+  code: string,
+  next: string,
+): Promise<{ error: string } | void> {
+  const supabase = await getServerSupabase();
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: code.replace(/\s+/g, ""),
+    type: "email",
+  });
+  if (error) return { error: error.message };
+  redirect(next);
 }
 
 export async function signOut(): Promise<void> {
