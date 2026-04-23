@@ -9,6 +9,7 @@ import { viewsFromRows } from "@/lib/card-format";
 import { SkyProvider } from "@/components/sky/sky";
 import { FeedItem } from "@/components/card/cards";
 import { ReadingModal } from "@/components/card/reading-modal";
+import { CurationAnimation } from "@/components/screens/curation-animation";
 
 interface Props {
   batches: BatchGroup[];
@@ -177,7 +178,9 @@ export function FeedScreen({
           />
         </div>
 
-        {empty ? (
+        {empty && manualJob?.status === "in_progress" ? (
+          <CurationAnimation />
+        ) : empty ? (
           <EmptyState nextBrief={nextBrief} />
         ) : (
           <SkyProvider>

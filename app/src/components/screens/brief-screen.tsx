@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { BriefLanguage, BriefRow } from "@/lib/supabase/database.types";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { Caption } from "@/components/card/primitives";
+import { triggerOnboardingBatchIfNeeded } from "@/app/brief/actions";
 
 interface Props {
   brief: BriefRow | null;
@@ -52,6 +54,7 @@ export function BriefScreen({ brief, readOnly }: Props) {
   }, [brief?.timezone]);
 
   const pmBeforeAm = useMemo(() => pmTime <= amTime, [pmTime, amTime]);
+  const router = useRouter();
 
   const save = () => {
     if (readOnly || !brief) return;
@@ -77,7 +80,15 @@ export function BriefScreen({ brief, readOnly }: Props) {
           .eq("id", brief.id);
         if (error) throw error;
         setStatus("saved");
-        setTimeout(() => setStatus("idle"), 2500);
+        // Fire onboarding batch if the user has no cards yet. Server action
+        // returns quickly with fired=true|false — the routine itself runs
+        // asynchronously and surfaces as a curation animation on the feed.
+        const onboarding = await triggerOnboardingBatchIfNeeded();
+        if (onboarding.fired) {
+          router.push("/feed");
+        } else {
+          setTimeout(() => setStatus("idle"), 2500);
+        }
       } catch {
         setStatus("error");
       }

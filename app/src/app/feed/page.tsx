@@ -225,6 +225,15 @@ export default async function FeedPage() {
     loadReserveCount(supabase, userId ?? "fx", useFixtures),
   ]);
 
+  // Onboarding: a brand-new user with no cards, no in-flight batch, and an
+  // unconfigured brief (no interests) lands on /brief instead of an empty feed.
+  const hasCards = batches.some((b) => b.cards.length > 0);
+  const inFlightBatch = manualJob?.status === "in_progress";
+  const briefUnconfigured = !brief?.interests?.trim();
+  if (!useFixtures && !hasCards && !inFlightBatch && briefUnconfigured) {
+    redirect("/brief");
+  }
+
   return (
     <SpaShell
       batches={batches}
