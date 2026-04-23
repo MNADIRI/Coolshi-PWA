@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { notifyAll, isPushConfigured } from "@/lib/push";
 
 function brusselsToday(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -10,13 +11,44 @@ function brusselsToday(): string {
   }).format(new Date());
 }
 
-async function reserveCount(supabase: Awaited<ReturnType<typeof getServerSupabase>>): Promise<number> {
+type Supa = Awaited<ReturnType<typeof getServerSupabase>>;
+
+async function reserveCount(supabase: Supa): Promise<number> {
   const { count } = await supabase
     .from("feed_cards")
     .select("id", { count: "exact", head: true })
     .eq("is_reserve", true);
   return count ?? 0;
 }
+
+function routineConfigured(): boolean {
+  return Boolean(process.env.CLAUDE_ROUTINE_URL && process.env.CLAUDE_ROUTINE_TOKEN);
+}
+
+async function fireRoutine(): Promise<{ ok: boolean; status: number; body: string }> {
+  const url = process.env.CLAUDE_ROUTINE_URL!;
+  const token = process.env.CLAUDE_ROUTINE_TOKEN!;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+      },
+    });
+    const body = await res.text();
+    return { ok: res.ok, status: res.status, body: body.slice(0, 500) };
+  } catch (e) {
+    return { ok: false, status: 0, body: String(e).slice(0, 200) };
+  }
+}
+
+const COMPLETION_MESSAGES = [
+  "your batch is ready — fresh from the chaos",
+  "curation complete, come see",
+  "done. the reading is served.",
+];
 
 export async function POST() {
   if (process.env.NEXT_PUBLIC_USE_FIXTURES === "1") {
@@ -25,10 +57,10 @@ export async function POST() {
   const supabase = await getServerSupabase();
   const today = brusselsToday();
 
-  // Quota: unique index on requested_for_date enforces 1/day
+  // Daily quota via unique index on requested_for_date
   const { data: inserted, error: insertError } = await supabase
     .from("manual_batch_jobs")
-    .insert({ requested_for_date: today, status: "completed" })
+    .insert({ requested_for_date: today, status: "in_progress" })
     .select()
     .single();
 
@@ -47,7 +79,7 @@ export async function POST() {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  // Find the most recent batch and release its reserves
+  // Primary path: release any pre-stocked reserves for an instant batch.
   const { data: latest } = await supabase
     .from("feed_cards")
     .select("batch_id")
@@ -55,46 +87,63 @@ export async function POST() {
     .limit(1)
     .maybeSingle();
 
-  const targetBatchId = latest?.batch_id ?? null;
-  let released = 0;
-  let releasedBatchId: string | null = null;
-
-  if (targetBatchId) {
-    const { data: flipped, error: flipError } = await supabase
+  if (latest?.batch_id) {
+    const { data: flipped } = await supabase
       .from("feed_cards")
       .update({ is_reserve: false, released_at: new Date().toISOString() })
-      .eq("batch_id", targetBatchId)
+      .eq("batch_id", latest.batch_id)
       .eq("is_reserve", true)
       .select("id");
-    if (flipError) {
-      return NextResponse.json({ error: flipError.message }, { status: 500 });
+    const released = flipped?.length ?? 0;
+    if (released > 0) {
+      await supabase
+        .from("manual_batch_jobs")
+        .update({
+          status: "completed",
+          batch_id: latest.batch_id,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", inserted.id);
+      return NextResponse.json({
+        mode: "reserves_released",
+        released,
+        batch_id: latest.batch_id,
+        job: { ...inserted, status: "completed" },
+      });
     }
-    released = flipped?.length ?? 0;
-    releasedBatchId = released > 0 ? targetBatchId : null;
   }
 
-  if (released === 0) {
-    // No reserves to release — refund the quota so the user can try again later
-    // (e.g. after the next scheduled batch).
+  // Fallback: no reserves → fire a fresh agent run via the Claude Routine API.
+  if (!routineConfigured()) {
     await supabase.from("manual_batch_jobs").delete().eq("id", inserted.id);
     return NextResponse.json(
-      { error: "nothing_in_reserve", message: "No reserve cards available right now. Come back after the next scheduled batch." },
+      {
+        error: "nothing_in_reserve_and_routine_not_configured",
+        message:
+          "No reserves and the routine API is not configured. Come back after the next scheduled batch.",
+      },
       { status: 409 },
     );
   }
 
-  await supabase
-    .from("manual_batch_jobs")
-    .update({
-      batch_id: releasedBatchId,
-      completed_at: new Date().toISOString(),
-    })
-    .eq("id", inserted.id);
+  const fire = await fireRoutine();
+  if (!fire.ok) {
+    // Refund the quota so the user can retry after a fix.
+    await supabase.from("manual_batch_jobs").delete().eq("id", inserted.id);
+    return NextResponse.json(
+      {
+        error: "trigger_failed",
+        status: fire.status,
+        detail: fire.body,
+      },
+      { status: 502 },
+    );
+  }
 
   return NextResponse.json({
+    mode: "fresh_run_fired",
     job: inserted,
-    released,
-    batch_id: releasedBatchId,
+    trigger: { status: fire.status },
   });
 }
 
@@ -104,13 +153,64 @@ export async function GET() {
   }
   const supabase = await getServerSupabase();
   const today = brusselsToday();
-  const [jobRes, count] = await Promise.all([
-    supabase
-      .from("manual_batch_jobs")
-      .select("*")
-      .eq("requested_for_date", today)
-      .maybeSingle(),
-    reserveCount(supabase),
-  ]);
-  return NextResponse.json({ job: jobRes.data ?? null, reserveCount: count });
+
+  const { data: job } = await supabase
+    .from("manual_batch_jobs")
+    .select("*")
+    .eq("requested_for_date", today)
+    .maybeSingle();
+
+  // If a fresh run is in progress, check whether new feed_cards have appeared
+  // after the request timestamp. If yes, flip the job to completed and fire push.
+  if (job?.status === "in_progress") {
+    const { data: newCards } = await supabase
+      .from("feed_cards")
+      .select("batch_id, created_at")
+      .gt("created_at", job.requested_at)
+      .eq("is_reserve", false)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (newCards?.batch_id) {
+      const { data: updated } = await supabase
+        .from("manual_batch_jobs")
+        .update({
+          status: "completed",
+          batch_id: newCards.batch_id,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", job.id)
+        .eq("status", "in_progress")
+        .select()
+        .single();
+      if (updated && !updated.notified_at && isPushConfigured()) {
+        const { error: claimErr } = await supabase
+          .from("manual_batch_jobs")
+          .update({ notified_at: new Date().toISOString() })
+          .eq("id", updated.id)
+          .is("notified_at", null);
+        if (!claimErr) {
+          const msg =
+            COMPLETION_MESSAGES[
+              Math.floor(Math.random() * COMPLETION_MESSAGES.length)
+            ]!;
+          await notifyAll({
+            title: "coolshi",
+            body: msg,
+            url: "/feed",
+            tag: "manual-batch",
+          });
+        }
+      }
+      return NextResponse.json({
+        job: updated,
+        reserveCount: await reserveCount(supabase),
+      });
+    }
+  }
+
+  return NextResponse.json({
+    job,
+    reserveCount: await reserveCount(supabase),
+  });
 }
