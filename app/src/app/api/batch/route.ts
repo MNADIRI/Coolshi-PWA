@@ -25,7 +25,12 @@ function routineConfigured(): boolean {
   return Boolean(process.env.CLAUDE_ROUTINE_URL && process.env.CLAUDE_ROUTINE_TOKEN);
 }
 
-async function fireRoutine(): Promise<{ ok: boolean; status: number; body: string }> {
+async function fireRoutine(): Promise<{
+  ok: boolean;
+  status: number;
+  body: string;
+  sessionId: string | null;
+}> {
   const url = process.env.CLAUDE_ROUTINE_URL!;
   const token = process.env.CLAUDE_ROUTINE_TOKEN!;
   try {
@@ -35,12 +40,31 @@ async function fireRoutine(): Promise<{ ok: boolean; status: number; body: strin
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "experimental-cc-routine-2026-04-01",
       },
+      body: "{}",
     });
-    const body = await res.text();
-    return { ok: res.ok, status: res.status, body: body.slice(0, 500) };
+    const text = await res.text();
+    let sessionId: string | null = null;
+    try {
+      const parsed = JSON.parse(text) as { claude_code_session_id?: string };
+      sessionId = parsed.claude_code_session_id ?? null;
+    } catch {
+      // non-JSON response
+    }
+    return {
+      ok: res.ok,
+      status: res.status,
+      body: text.slice(0, 500),
+      sessionId,
+    };
   } catch (e) {
-    return { ok: false, status: 0, body: String(e).slice(0, 200) };
+    return {
+      ok: false,
+      status: 0,
+      body: String(e).slice(0, 200),
+      sessionId: null,
+    };
   }
 }
 
