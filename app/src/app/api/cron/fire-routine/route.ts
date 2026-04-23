@@ -6,8 +6,8 @@ import { getServerSupabase } from "@/lib/supabase/server";
 // timezone) and, if so, calls the Claude Routine API. De-duplicated
 // by looking at the most recent agent_runs.started_at.
 
-const FIRE_WINDOW_MIN = 10;
-const LOOKBACK_SECONDS = 60 * 60 * 2; // don't fire twice within 2h
+const FIRE_WINDOW_MIN = 120; // Hobby daily cron: wide window so user can move times ±2h
+const LOOKBACK_SECONDS = 60 * 60 * 4; // don't fire twice within 4h
 
 function isVercelCron(req: Request): boolean {
   if (process.env.NODE_ENV !== "production") return true;

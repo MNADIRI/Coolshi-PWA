@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/fire-routine",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/fire-routine",
+      "schedule": "0 15 * * *"
     }
   ]
 }
