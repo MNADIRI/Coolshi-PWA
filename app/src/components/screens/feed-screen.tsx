@@ -7,7 +7,6 @@ import { BatchTrigger } from "@/components/screens/batch-trigger";
 import type { CardView } from "@/lib/card-format";
 import { viewsFromRows } from "@/lib/card-format";
 import { SkyProvider } from "@/components/sky/sky";
-import { MusicPlayerCard } from "@/components/card/music-player";
 import { FeedItem } from "@/components/card/cards";
 import { ReadingModal } from "@/components/card/reading-modal";
 
@@ -121,6 +120,7 @@ export function FeedScreen({
   reserveCount,
 }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
+  const [showPrevious, setShowPrevious] = useState(false);
 
   const tz = brief?.timezone ?? "Europe/Brussels";
   const currentBatch = batches[0] ?? null;
@@ -182,36 +182,46 @@ export function FeedScreen({
         ) : (
           <SkyProvider>
             <div className="flex flex-col">
-              <div className="px-5 pb-6">
-                <MusicPlayerCard />
-              </div>
               {currentViews.map((v) => (
                 <FeedItem key={v.row.id} view={v} onOpen={() => recordOpen(v)} />
               ))}
             </div>
 
-            <div className="mt-4 px-5 pb-10 pt-10 text-center">
+            <div className="mt-4 px-5 pb-8 pt-10 text-center">
               <div className="mx-auto mb-6 h-[40px] w-px bg-divider-strong" />
               <div className="font-display text-[22px] font-medium leading-[1.2] tracking-[-0.03em] text-ink [text-wrap:balance]">
                 {endText}
               </div>
             </div>
 
-            {previousViewGroups.map((g) => (
-              <div key={g.batch_id} className="flex flex-col">
-                {g.header && (
-                  <div className="px-5 pb-6 pt-4 text-center">
-                    <div className="mx-auto mb-4 h-px w-10 bg-divider" />
-                    <div className="font-text text-[10.5px] font-semibold uppercase tracking-[0.24em] text-ink-3">
-                      previous batch of {g.header.date} — {g.header.slot}
-                    </div>
-                  </div>
-                )}
-                {g.views.map((v) => (
-                  <FeedItem key={v.row.id} view={v} onOpen={() => recordOpen(v)} />
-                ))}
+            {previousViewGroups.length > 0 && !showPrevious && (
+              <div className="px-5 pb-10 pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowPrevious(true)}
+                  className="rounded-pill border border-divider-strong bg-transparent px-5 py-2.5 font-text text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-2 transition-colors active:bg-ink active:text-canvas"
+                >
+                  I want to see previous batches
+                </button>
               </div>
-            ))}
+            )}
+
+            {showPrevious &&
+              previousViewGroups.map((g) => (
+                <div key={g.batch_id} className="flex flex-col">
+                  {g.header && (
+                    <div className="px-5 pb-6 pt-4 text-center">
+                      <div className="mx-auto mb-4 h-px w-10 bg-divider" />
+                      <div className="font-text text-[10.5px] font-semibold uppercase tracking-[0.24em] text-ink-3">
+                        previous batch of {g.header.date} — {g.header.slot}
+                      </div>
+                    </div>
+                  )}
+                  {g.views.map((v) => (
+                    <FeedItem key={v.row.id} view={v} onOpen={() => recordOpen(v)} />
+                  ))}
+                </div>
+              ))}
           </SkyProvider>
         )}
       </div>
