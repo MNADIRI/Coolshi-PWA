@@ -230,26 +230,24 @@ export function BriefScreen({ brief, readOnly }: Props) {
             </Field>
           </Section>
 
-          <div className="sticky bottom-0 -mx-5 mt-8 border-t border-divider bg-canvas/95 px-5 py-4 backdrop-blur-md safe-bottom">
-            <div className="flex items-center justify-between gap-4">
-              <span className="font-text text-[11px] leading-[1.4] text-ink-3 [text-wrap:pretty]">
-                {readOnly
-                  ? "Fixture mode — set NEXT_PUBLIC_USE_FIXTURES=0 to edit."
-                  : status === "saved"
-                    ? "Saved. Next batch will use this."
-                    : status === "error"
-                      ? "Error — retry."
-                      : "Changes apply at the next batch."}
-              </span>
-              <button
-                type="button"
-                onClick={save}
-                disabled={readOnly || pending}
-                className="shrink-0 rounded-btn bg-ink px-6 py-2.5 font-text text-[12px] font-semibold uppercase tracking-[0.12em] text-canvas disabled:opacity-40"
-              >
-                {pending ? "Saving…" : "Save"}
-              </button>
-            </div>
+          <div className="mt-4 flex items-center justify-between gap-4">
+            <span className="font-text text-[11px] leading-[1.4] text-ink-3 [text-wrap:pretty]">
+              {readOnly
+                ? "Fixture mode — set NEXT_PUBLIC_USE_FIXTURES=0 to edit."
+                : status === "saved"
+                  ? "Saved. Next batch will use this."
+                  : status === "error"
+                    ? "Error — retry."
+                    : "Changes apply at the next batch."}
+            </span>
+            <button
+              type="button"
+              onClick={save}
+              disabled={readOnly || pending}
+              className="shrink-0 rounded-btn bg-ink px-6 py-2.5 font-text text-[12px] font-semibold uppercase tracking-[0.12em] text-canvas disabled:opacity-40"
+            >
+              {pending ? "Saving…" : "Save"}
+            </button>
           </div>
         </>
       )}
