@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = new Set([
   "/login",
   "/auth/callback",
+  "/auth/hash",
   "/auth/signout",
   "/manifest.json",
   "/sw.js",

@@ -12,6 +12,12 @@ export async function getServerSupabase() {
     );
   }
   return createServerClient<Database>(url, key, {
+    auth: {
+      flowType: "pkce",
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
     cookies: {
       getAll() {
         return cookieStore.getAll();
