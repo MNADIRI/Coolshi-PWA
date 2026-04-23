@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import type { BriefRow } from "@/lib/supabase/database.types";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import type { BriefLanguage, BriefRow } from "@/lib/supabase/database.types";
 import { getBrowserSupabase } from "@/lib/supabase/client";
 import { Caption } from "@/components/card/primitives";
 
@@ -13,6 +13,22 @@ interface Props {
 const WELCOME =
   "Hello, I'm coolshi, a content curator interfacing between you and the chaos of the web. I'll create two batches of content for you each day, one in the morning, another in the evening. Things that matter to you, nothing else. Let's set up your safe place.";
 
+function normalizeTime(input: string, fallback: string): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(input);
+  if (!m) return fallback;
+  const hh = Math.min(23, Math.max(0, parseInt(m[1]!, 10)));
+  const mm = Math.min(59, Math.max(0, parseInt(m[2]!, 10)));
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Brussels";
+  } catch {
+    return "Europe/Brussels";
+  }
+}
+
 export function BriefScreen({ brief, readOnly }: Props) {
   const [location, setLocation] = useState(brief?.location ?? "");
   const [scope, setScope] = useState<number>(brief?.international_scope ?? 50);
@@ -21,8 +37,21 @@ export function BriefScreen({ brief, readOnly }: Props) {
   const [interests, setInterests] = useState(brief?.interests ?? "");
   const [preferences, setPreferences] = useState(brief?.preferences ?? "");
   const [mustNotMiss, setMustNotMiss] = useState(brief?.must_not_miss ?? "");
+  const [amTime, setAmTime] = useState(normalizeTime(brief?.am_delivery_time ?? "07:00", "07:00"));
+  const [pmTime, setPmTime] = useState(normalizeTime(brief?.pm_delivery_time ?? "18:00", "18:00"));
+  const [timezone, setTimezone] = useState(brief?.timezone ?? "Europe/Brussels");
+  const [language, setLanguage] = useState<BriefLanguage>(brief?.language ?? "en");
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!brief?.timezone) {
+      const detected = detectTimezone();
+      if (detected) setTimezone(detected);
+    }
+  }, [brief?.timezone]);
+
+  const pmBeforeAm = useMemo(() => pmTime <= amTime, [pmTime, amTime]);
 
   const save = () => {
     if (readOnly || !brief) return;
@@ -39,6 +68,10 @@ export function BriefScreen({ brief, readOnly }: Props) {
             interests: interests.trim() || null,
             preferences: preferences.trim() || null,
             must_not_miss: mustNotMiss.trim() || null,
+            am_delivery_time: amTime,
+            pm_delivery_time: pmTime,
+            timezone: timezone.trim() || "Europe/Brussels",
+            language,
             updated_at: new Date().toISOString(),
           })
           .eq("id", brief.id);
@@ -69,6 +102,64 @@ export function BriefScreen({ brief, readOnly }: Props) {
         </p>
       ) : (
         <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Morning batch at">
+              <input
+                type="time"
+                step={900}
+                value={amTime}
+                onChange={(e) => setAmTime(e.target.value)}
+                readOnly={readOnly}
+                className="w-full rounded-btn border border-divider-strong bg-paper px-4 py-3 font-text text-[14px] text-ink focus:border-ink focus:outline-none"
+              />
+            </Field>
+            <Field label="Evening batch at">
+              <input
+                type="time"
+                step={900}
+                value={pmTime}
+                onChange={(e) => setPmTime(e.target.value)}
+                readOnly={readOnly}
+                className="w-full rounded-btn border border-divider-strong bg-paper px-4 py-3 font-text text-[14px] text-ink focus:border-ink focus:outline-none"
+              />
+            </Field>
+          </div>
+          {pmBeforeAm && (
+            <div className="-mt-3 font-text text-[11px] text-ink-3">
+              Evening time must be later than morning. The routine will still run,
+              but the batches may overlap.
+            </div>
+          )}
+
+          <Field label="Timezone (auto-detected, edit if wrong)">
+            <input
+              type="text"
+              value={timezone}
+              onChange={(e) => setTimezone(e.target.value)}
+              readOnly={readOnly}
+              placeholder="Europe/Brussels"
+              className="w-full rounded-btn border border-divider-strong bg-paper px-4 py-3 font-text text-[13px] text-ink focus:border-ink focus:outline-none"
+            />
+          </Field>
+
+          <Field label="Language">
+            <div className="flex rounded-pill border border-divider-strong bg-paper p-1">
+              {(["en", "fr"] as const).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => !readOnly && setLanguage(code)}
+                  disabled={readOnly}
+                  className={`flex-1 rounded-pill py-2 font-text text-[12px] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                    language === code ? "bg-ink text-canvas" : "text-ink-2"
+                  }`}
+                >
+                  {code === "en" ? "English" : "Français"}
+                </button>
+              ))}
+            </div>
+          </Field>
+
           <Field label="Where do you live?">
             <input
               type="text"

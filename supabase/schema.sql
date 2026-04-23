@@ -1,5 +1,4 @@
--- Coolshi schema (spec §6)
--- Paste into Supabase SQL editor after creating a free-tier project.
+-- Coolshi schema
 
 create extension if not exists vector;
 
@@ -15,40 +14,13 @@ create table briefs (
   interests text,
   preferences text,
   must_not_miss text,
+  am_delivery_time time not null default '07:00',
+  pm_delivery_time time not null default '18:00',
+  timezone text not null default 'Europe/Brussels',
+  language text not null default 'en' check (language in ('en','fr')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-
-create table sources (
-  id uuid primary key default gen_random_uuid(),
-  source_type text not null,
-  source_tier text check (source_tier in ('A','B','C','D')),
-  name text not null,
-  config jsonb not null,
-  is_active boolean default true,
-  last_fetched_at timestamptz,
-  last_error text,
-  created_at timestamptz default now()
-);
-
-create table raw_items (
-  id uuid primary key default gen_random_uuid(),
-  source_id uuid references sources(id),
-  source_tier text,
-  url text not null,
-  title text,
-  content text,
-  author text,
-  published_at timestamptz,
-  raw_metadata jsonb,
-  processed_in_batch text,
-  embedding vector(1024),
-  created_at timestamptz default now()
-);
-
-create unique index raw_items_url_uniq on raw_items(url);
-create index raw_items_unprocessed_idx on raw_items(processed_in_batch)
-  where processed_in_batch is null;
 
 create table feed_cards (
   id uuid primary key default gen_random_uuid(),
@@ -65,12 +37,14 @@ create table feed_cards (
   embedding vector(1024),
   is_reserve boolean not null default false,
   released_at timestamptz,
+  delivered_at timestamptz,
   created_at timestamptz default now()
 );
 
 create index feed_cards_batch_idx on feed_cards(batch_id);
 create index feed_cards_created_at_idx on feed_cards(created_at desc);
 create index feed_cards_reserve_idx on feed_cards(batch_id, is_reserve);
+create index feed_cards_delivered_idx on feed_cards(delivered_at);
 
 create table feedback (
   id uuid primary key default gen_random_uuid(),
@@ -95,7 +69,8 @@ create table manual_batch_jobs (
     check (status in ('in_progress','completed','failed')),
   batch_id text,
   error_message text,
-  completed_at timestamptz
+  completed_at timestamptz,
+  notified_at timestamptz
 );
 create unique index manual_batch_jobs_daily_quota
   on manual_batch_jobs(requested_for_date);

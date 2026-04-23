@@ -9,7 +9,6 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type SourceTier = "A" | "B" | "C" | "D";
 export type CardType = "news" | "deep_dive";
 export type FeedbackSignal = "like" | "dislike" | "neutral" | "skip";
 
@@ -32,8 +31,11 @@ export type FeedCardRow = {
   hero_image_url: string | null;
   is_reserve: boolean;
   released_at: string | null;
+  delivered_at: string | null;
   created_at: string;
 };
+
+export type BriefLanguage = "en" | "fr";
 
 export type BriefRow = {
   id: string;
@@ -47,6 +49,10 @@ export type BriefRow = {
   interests: string | null;
   preferences: string | null;
   must_not_miss: string | null;
+  am_delivery_time: string;
+  pm_delivery_time: string;
+  timezone: string;
+  language: BriefLanguage;
   created_at: string;
   updated_at: string;
 };
@@ -89,17 +95,6 @@ export type AgentRunRow = {
   ended_at: string | null;
 };
 
-export type SourceRow = {
-  id: string;
-  source_type: string;
-  source_tier: SourceTier | null;
-  name: string;
-  config: Json;
-  is_active: boolean | null;
-  last_fetched_at: string | null;
-  last_error: string | null;
-  created_at: string;
-};
 
 export type Database = {
   public: {
@@ -141,15 +136,6 @@ export type Database = {
           started_at?: string;
         };
         Update: Partial<AgentRunRow>;
-        Relationships: [];
-      };
-      sources: {
-        Row: SourceRow;
-        Insert: Omit<SourceRow, "id" | "created_at"> & {
-          id?: string;
-          created_at?: string;
-        };
-        Update: Partial<SourceRow>;
         Relationships: [];
       };
       saved_cards: {

@@ -4,16 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 import type { BriefRow, FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
 import { TabShell, type TabDef } from "@/components/shell/tab-pager";
 import { FeedScreen } from "@/components/screens/feed-screen";
-import {
-  LibraryScreen,
-  type LibrarySource,
-} from "@/components/screens/library-screen";
 import { BriefScreen } from "@/components/screens/brief-screen";
 import { SavedScreen } from "@/components/screens/saved-screen";
 
 const TABS: TabDef[] = [
   { id: "feed", label: "Feed" },
-  { id: "library", label: "Library" },
   { id: "brief", label: "Brief" },
   { id: "saved", label: "Saved" },
 ];
@@ -21,29 +16,32 @@ const TABS: TabDef[] = [
 interface Props {
   feedRows: FeedCardRow[];
   brief: BriefRow | null;
-  library: LibrarySource[];
   savedCards: FeedCardRow[];
   manualJob: ManualBatchJobRow | null;
   reserveCount: number;
   useFixtures: boolean;
 }
 
-export function SpaShell({ feedRows, brief, library, savedCards, manualJob, reserveCount, useFixtures }: Props) {
+export function SpaShell({
+  feedRows,
+  brief,
+  savedCards,
+  manualJob,
+  reserveCount,
+  useFixtures,
+}: Props) {
   const [saved, setSaved] = useState<FeedCardRow[]>(savedCards);
   const savedIdSet = useMemo(() => new Set(saved.map((c) => c.id)), [saved]);
 
-  const onSavedChange = useCallback(
-    (row: FeedCardRow, isSaved: boolean) => {
-      setSaved((prev) => {
-        if (isSaved) {
-          if (prev.some((r) => r.id === row.id)) return prev;
-          return [row, ...prev];
-        }
-        return prev.filter((r) => r.id !== row.id);
-      });
-    },
-    [],
-  );
+  const onSavedChange = useCallback((row: FeedCardRow, isSaved: boolean) => {
+    setSaved((prev) => {
+      if (isSaved) {
+        if (prev.some((r) => r.id === row.id)) return prev;
+        return [row, ...prev];
+      }
+      return prev.filter((r) => r.id !== row.id);
+    });
+  }, []);
 
   return (
     <TabShell tabs={TABS}>
@@ -55,7 +53,6 @@ export function SpaShell({ feedRows, brief, library, savedCards, manualJob, rese
         manualJob={manualJob}
         reserveCount={reserveCount}
       />
-      <LibraryScreen sources={library} />
       <BriefScreen brief={brief} readOnly={useFixtures} />
       <SavedScreen
         saved={saved}
