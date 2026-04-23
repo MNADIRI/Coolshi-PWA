@@ -152,7 +152,7 @@ function ModalBody({
   onToggleSaved: () => void;
   onHeaderPointerDown: (e: React.PointerEvent) => void;
 }) {
-  const showHero = view.format !== "link";
+  const showHero = true;
   return (
     <>
       <div

@@ -4,17 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import type { FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
 import { BatchTrigger } from "@/components/screens/batch-trigger";
 import type { CardView } from "@/lib/card-format";
-import { groupFeed, viewsFromRows } from "@/lib/card-format";
+import { viewsFromRows } from "@/lib/card-format";
 import { SkyProvider } from "@/components/sky/sky";
 import { MusicPlayerCard } from "@/components/card/music-player";
-import {
-  HeroCard,
-  LinkCard,
-  MicroPair,
-  SquareCard,
-  TextCard,
-  WideCard,
-} from "@/components/card/cards";
+import { FeedItem } from "@/components/card/cards";
 import { ReadingModal } from "@/components/card/reading-modal";
 
 interface Props {
@@ -59,8 +52,6 @@ const GENERIC_POOL = [
 ];
 
 function slotFromBatch(batchId: string | null): "morning" | "evening" {
-  // batch_id is YYYY-MM-DD-HH in UTC; morning cron = 05 UTC, afternoon = 11 UTC.
-  // Anything before 10 UTC we treat as morning, else evening.
   if (!batchId) {
     return new Date().getUTCHours() < 10 ? "morning" : "evening";
   }
@@ -81,11 +72,17 @@ function endMessage(batchId: string | null): string {
   return pool[idx]!;
 }
 
-export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJob, reserveCount }: Props) {
+export function FeedScreen({
+  rows,
+  savedIds,
+  useFixtures,
+  onSavedChange,
+  manualJob,
+  reserveCount,
+}: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
 
   const views = useMemo(() => viewsFromRows(rows), [rows]);
-  const grouped = useMemo(() => groupFeed(views), [views]);
   const headerDate = useMemo(todayHeader, []);
   const nextBrief = useMemo(nextBriefLabel, []);
   const endText = useMemo(() => endMessage(rows[0]?.batch_id ?? null), [rows]);
@@ -108,8 +105,8 @@ export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJ
 
   return (
     <>
-      <div className="px-[18px] pb-10">
-        <div className="pb-8 pt-[18px] text-center">
+      <div className="pb-10">
+        <div className="px-5 pb-8 pt-[18px] text-center">
           <BatchTrigger
             initialJob={manualJob}
             initialReserveCount={reserveCount}
@@ -122,44 +119,19 @@ export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJ
           <EmptyState nextBrief={nextBrief} />
         ) : (
           <SkyProvider>
-            <div className="flex flex-col gap-4">
-              <MusicPlayerCard />
-              {grouped.map((node, idx) => {
-                if (node.kind === "micro-pair") {
-                  return (
-                    <MicroPair
-                      key={`pair-${idx}`}
-                      a={node.views[0]}
-                      b={node.views[1]}
-                      onOpen={recordOpen}
-                    />
-                  );
-                }
-                const v = node.view;
-                const props = { view: v, onOpen: () => recordOpen(v) };
-                switch (v.format) {
-                  case "hero":
-                    return <HeroCard key={v.row.id} {...props} />;
-                  case "wide":
-                    return <WideCard key={v.row.id} {...props} />;
-                  case "wide-flip":
-                    return <WideCard key={v.row.id} {...props} flip />;
-                  case "square":
-                    return <SquareCard key={v.row.id} {...props} />;
-                  case "text":
-                    return <TextCard key={v.row.id} {...props} />;
-                  case "link":
-                    return <LinkCard key={v.row.id} {...props} />;
-                  default:
-                    return <TextCard key={v.row.id} {...props} />;
-                }
-              })}
+            <div className="flex flex-col">
+              <div className="px-5 pb-6">
+                <MusicPlayerCard />
+              </div>
+              {views.map((v) => (
+                <FeedItem key={v.row.id} view={v} onOpen={() => recordOpen(v)} />
+              ))}
             </div>
           </SkyProvider>
         )}
 
         {rows.length > 0 && (
-          <div className="mt-[60px] pb-10 pt-10 text-center">
+          <div className="mt-4 px-5 pb-10 pt-10 text-center">
             <div className="mx-auto mb-6 h-[40px] w-px bg-divider-strong" />
             <div className="font-display text-[22px] font-medium leading-[1.2] tracking-[-0.03em] text-ink [text-wrap:balance]">
               {endText}
@@ -181,7 +153,7 @@ export function FeedScreen({ rows, savedIds, useFixtures, onSavedChange, manualJ
 
 function EmptyState({ nextBrief }: { nextBrief: string }) {
   return (
-    <div className="mt-20 text-center">
+    <div className="mt-20 px-5 text-center">
       <div className="mx-auto mb-8 h-[40px] w-px bg-divider-strong" />
       <div className="mb-3 font-display text-[22px] font-medium tracking-[-0.03em] text-ink">
         No briefing yet today.
