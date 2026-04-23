@@ -1,5 +1,4 @@
 // Database types for Coolshi. Hand-written stub matching supabase/schema.sql.
-// Regenerate with `npx supabase gen types typescript --project-id <id>` when the schema evolves.
 
 export type Json =
   | string
@@ -32,6 +31,7 @@ export type FeedCardRow = {
   is_reserve: boolean;
   released_at: string | null;
   delivered_at: string | null;
+  user_id: string | null;
   created_at: string;
 };
 
@@ -53,6 +53,7 @@ export type BriefRow = {
   pm_delivery_time: string;
   timezone: string;
   language: BriefLanguage;
+  user_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -60,6 +61,7 @@ export type BriefRow = {
 export type SavedCardRow = {
   card_id: string;
   saved_at: string;
+  user_id: string | null;
 };
 
 export type ManualBatchStatus = "in_progress" | "completed" | "failed";
@@ -72,6 +74,7 @@ export type ManualBatchJobRow = {
   error_message: string | null;
   completed_at: string | null;
   notified_at: string | null;
+  user_id: string | null;
 };
 
 export type FeedbackRow = {
@@ -79,6 +82,7 @@ export type FeedbackRow = {
   card_id: string;
   signal: FeedbackSignal;
   dwell_ms: number | null;
+  user_id: string | null;
   created_at: string;
 };
 
@@ -93,8 +97,22 @@ export type AgentRunRow = {
   tokens_used: number | null;
   started_at: string;
   ended_at: string | null;
+  user_id: string | null;
 };
 
+export type PendingRunStatus = "pending" | "processing" | "completed" | "failed";
+export type PendingRunSlot = "am" | "pm" | "manual";
+export type PendingRunRow = {
+  id: string;
+  user_id: string;
+  slot: PendingRunSlot | null;
+  status: PendingRunStatus;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  batch_id: string | null;
+};
 
 export type Database = {
   public: {
@@ -110,10 +128,7 @@ export type Database = {
       };
       briefs: {
         Row: BriefRow;
-        Insert: Omit<BriefRow, "id" | "created_at"> & {
-          id?: string;
-          created_at?: string;
-        };
+        Insert: Partial<BriefRow> & { user_id: string };
         Update: Partial<BriefRow>;
         Relationships: [];
       };
@@ -123,6 +138,7 @@ export type Database = {
           card_id: string;
           signal: FeedbackSignal;
           dwell_ms: number | null;
+          user_id?: string | null;
           id?: string;
           created_at?: string;
         };
@@ -140,7 +156,7 @@ export type Database = {
       };
       saved_cards: {
         Row: SavedCardRow;
-        Insert: { card_id: string; saved_at?: string };
+        Insert: { card_id: string; user_id?: string | null; saved_at?: string };
         Update: Partial<SavedCardRow>;
         Relationships: [];
       };
@@ -156,6 +172,7 @@ export type Database = {
           p256dh: string;
           auth: string;
           user_agent: string | null;
+          user_id: string | null;
           created_at: string;
           last_used_at: string | null;
         };
@@ -164,6 +181,7 @@ export type Database = {
           p256dh: string;
           auth: string;
           user_agent?: string | null;
+          user_id?: string | null;
           created_at?: string;
           last_used_at?: string | null;
         };
@@ -172,9 +190,22 @@ export type Database = {
           p256dh: string;
           auth: string;
           user_agent: string | null;
+          user_id: string | null;
           created_at: string;
           last_used_at: string | null;
         }>;
+        Relationships: [];
+      };
+      pending_runs: {
+        Row: PendingRunRow;
+        Insert: Partial<PendingRunRow> & { user_id: string };
+        Update: Partial<PendingRunRow>;
+        Relationships: [];
+      };
+      coolshi_allowed_emails: {
+        Row: { email: string; added_at: string };
+        Insert: { email: string; added_at?: string };
+        Update: Partial<{ email: string; added_at: string }>;
         Relationships: [];
       };
     };

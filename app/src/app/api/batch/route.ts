@@ -1,28 +1,37 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { notifyAll, isPushConfigured } from "@/lib/push";
+import { getServiceSupabase } from "@/lib/supabase/service";
+import { notifyUser, isPushConfigured } from "@/lib/push";
+import { requireUserId } from "@/lib/auth";
 
-function brusselsToday(): string {
+type Supa = Awaited<ReturnType<typeof getServerSupabase>>;
+
+function todayInTz(tz: string): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Brussels",
+    timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
 }
 
-type Supa = Awaited<ReturnType<typeof getServerSupabase>>;
-
-async function reserveCount(supabase: Supa): Promise<number> {
+async function reserveCount(supabase: Supa, userId: string): Promise<number> {
   const { count } = await supabase
     .from("feed_cards")
     .select("id", { count: "exact", head: true })
-    .eq("is_reserve", true);
+    .eq("is_reserve", true)
+    .eq("user_id", userId);
   return count ?? 0;
 }
 
-function routineConfigured(): boolean {
-  return Boolean(process.env.CLAUDE_ROUTINE_URL && process.env.CLAUDE_ROUTINE_TOKEN);
+async function userTimezone(supabase: Supa, userId: string): Promise<string> {
+  const { data } = await supabase
+    .from("briefs")
+    .select("timezone")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+  return data?.timezone ?? "Europe/Brussels";
 }
 
 async function fireRoutine(): Promise<{
@@ -31,8 +40,11 @@ async function fireRoutine(): Promise<{
   body: string;
   sessionId: string | null;
 }> {
-  const url = process.env.CLAUDE_ROUTINE_URL!;
-  const token = process.env.CLAUDE_ROUTINE_TOKEN!;
+  const url = process.env.CLAUDE_ROUTINE_URL;
+  const token = process.env.CLAUDE_ROUTINE_TOKEN;
+  if (!url || !token) {
+    return { ok: false, status: 0, body: "routine env not configured", sessionId: null };
+  }
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -50,21 +62,11 @@ async function fireRoutine(): Promise<{
       const parsed = JSON.parse(text) as { claude_code_session_id?: string };
       sessionId = parsed.claude_code_session_id ?? null;
     } catch {
-      // non-JSON response
+      // non-JSON
     }
-    return {
-      ok: res.ok,
-      status: res.status,
-      body: text.slice(0, 500),
-      sessionId,
-    };
+    return { ok: res.ok, status: res.status, body: text.slice(0, 300), sessionId };
   } catch (e) {
-    return {
-      ok: false,
-      status: 0,
-      body: String(e).slice(0, 200),
-      sessionId: null,
-    };
+    return { ok: false, status: 0, body: String(e).slice(0, 200), sessionId: null };
   }
 }
 
@@ -78,13 +80,21 @@ export async function POST() {
   if (process.env.NEXT_PUBLIC_USE_FIXTURES === "1") {
     return NextResponse.json({ error: "fixtures mode" }, { status: 400 });
   }
-  const supabase = await getServerSupabase();
-  const today = brusselsToday();
+  const userId = await requireUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  // Daily quota via unique index on requested_for_date
+  const supabase = await getServerSupabase();
+  const tz = await userTimezone(supabase, userId);
+  const today = todayInTz(tz);
+
+  // Daily quota (per user) via unique index (user_id, requested_for_date)
   const { data: inserted, error: insertError } = await supabase
     .from("manual_batch_jobs")
-    .insert({ requested_for_date: today, status: "in_progress" })
+    .insert({
+      user_id: userId,
+      requested_for_date: today,
+      status: "in_progress",
+    })
     .select()
     .single();
 
@@ -93,6 +103,7 @@ export async function POST() {
       const { data: existing } = await supabase
         .from("manual_batch_jobs")
         .select("*")
+        .eq("user_id", userId)
         .eq("requested_for_date", today)
         .maybeSingle();
       return NextResponse.json(
@@ -103,10 +114,11 @@ export async function POST() {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  // Primary path: release any pre-stocked reserves for an instant batch.
+  // Path 1 — release pre-stocked reserves
   const { data: latest } = await supabase
     .from("feed_cards")
     .select("batch_id")
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -117,6 +129,7 @@ export async function POST() {
       .update({ is_reserve: false, released_at: new Date().toISOString() })
       .eq("batch_id", latest.batch_id)
       .eq("is_reserve", true)
+      .eq("user_id", userId)
       .select("id");
     const released = flipped?.length ?? 0;
     if (released > 0) {
@@ -137,8 +150,8 @@ export async function POST() {
     }
   }
 
-  // Fallback: no reserves → fire a fresh agent run via the Claude Routine API.
-  if (!routineConfigured()) {
+  // Path 2 — no reserves, fire a fresh run for this user via pending_runs + routine API
+  if (!process.env.CLAUDE_ROUTINE_URL || !process.env.CLAUDE_ROUTINE_TOKEN) {
     await supabase.from("manual_batch_jobs").delete().eq("id", inserted.id);
     return NextResponse.json(
       {
@@ -150,16 +163,15 @@ export async function POST() {
     );
   }
 
+  // Enqueue + fire via service role so routine can claim the row under RLS-bypass
+  const service = getServiceSupabase();
+  await service.from("pending_runs").insert({ user_id: userId, slot: "manual" });
+
   const fire = await fireRoutine();
   if (!fire.ok) {
-    // Refund the quota so the user can retry after a fix.
     await supabase.from("manual_batch_jobs").delete().eq("id", inserted.id);
     return NextResponse.json(
-      {
-        error: "trigger_failed",
-        status: fire.status,
-        detail: fire.body,
-      },
+      { error: "trigger_failed", status: fire.status, detail: fire.body },
       { status: 502 },
     );
   }
@@ -175,21 +187,25 @@ export async function GET() {
   if (process.env.NEXT_PUBLIC_USE_FIXTURES === "1") {
     return NextResponse.json({ job: null, reserveCount: 0 });
   }
+  const userId = await requireUserId();
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const supabase = await getServerSupabase();
-  const today = brusselsToday();
+  const tz = await userTimezone(supabase, userId);
+  const today = todayInTz(tz);
 
   const { data: job } = await supabase
     .from("manual_batch_jobs")
     .select("*")
+    .eq("user_id", userId)
     .eq("requested_for_date", today)
     .maybeSingle();
 
-  // If a fresh run is in progress, check whether new feed_cards have appeared
-  // after the request timestamp. If yes, flip the job to completed and fire push.
   if (job?.status === "in_progress") {
     const { data: newCards } = await supabase
       .from("feed_cards")
       .select("batch_id, created_at")
+      .eq("user_id", userId)
       .gt("created_at", job.requested_at)
       .eq("is_reserve", false)
       .order("created_at", { ascending: false })
@@ -218,7 +234,7 @@ export async function GET() {
             COMPLETION_MESSAGES[
               Math.floor(Math.random() * COMPLETION_MESSAGES.length)
             ]!;
-          await notifyAll({
+          await notifyUser(userId, {
             title: "coolshi",
             body: msg,
             url: "/feed",
@@ -228,13 +244,13 @@ export async function GET() {
       }
       return NextResponse.json({
         job: updated,
-        reserveCount: await reserveCount(supabase),
+        reserveCount: await reserveCount(supabase, userId),
       });
     }
   }
 
   return NextResponse.json({
     job,
-    reserveCount: await reserveCount(supabase),
+    reserveCount: await reserveCount(supabase, userId),
   });
 }

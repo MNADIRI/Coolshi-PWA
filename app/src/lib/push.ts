@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { getServerSupabase } from "@/lib/supabase/server";
+import { getServiceSupabase } from "@/lib/supabase/service";
 
 export function isPushConfigured(): boolean {
   return Boolean(
@@ -26,16 +26,16 @@ export interface NotificationPayload {
   tag?: string;
 }
 
-export async function notifyAll(payload: NotificationPayload): Promise<{
-  sent: number;
-  failed: number;
-  pruned: number;
-}> {
+export async function notifyUser(
+  userId: string,
+  payload: NotificationPayload,
+): Promise<{ sent: number; failed: number; pruned: number }> {
   if (!configure()) return { sent: 0, failed: 0, pruned: 0 };
-  const supabase = await getServerSupabase();
+  const supabase = getServiceSupabase();
   const { data: subs } = await supabase
     .from("push_subscriptions")
-    .select("endpoint, p256dh, auth");
+    .select("endpoint, p256dh, auth")
+    .eq("user_id", userId);
   if (!subs || subs.length === 0) return { sent: 0, failed: 0, pruned: 0 };
 
   const json = JSON.stringify(payload);
@@ -47,10 +47,7 @@ export async function notifyAll(payload: NotificationPayload): Promise<{
     subs.map(async (s) => {
       try {
         await webpush.sendNotification(
-          {
-            endpoint: s.endpoint,
-            keys: { p256dh: s.p256dh, auth: s.auth },
-          },
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           json,
         );
         sent += 1;
