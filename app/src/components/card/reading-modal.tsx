@@ -84,21 +84,21 @@ export function ReadingModal({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm [animation:cs-fade-in_260ms_ease-out]" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px] [animation:cs-fade-in_220ms_cubic-bezier(0.22,1,0.36,1)]" />
         <Dialog.Content asChild aria-describedby={undefined}>
           <motion.div
-            style={{ y }}
+            style={{ y, willChange: "transform", WebkitBackfaceVisibility: "hidden" }}
             drag="y"
             dragListener={false}
             dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.6 }}
+            dragElastic={{ top: 0, bottom: 0.55 }}
             onDragEnd={onDragEnd}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 32, stiffness: 280 }}
-            className="fixed inset-x-0 bottom-0 z-50 flex h-[93dvh] flex-col overflow-hidden rounded-t-[24px] bg-canvas shadow-[0_-20px_60px_rgba(0,0,0,0.18)] focus:outline-none safe-bottom"
+            transition={{ type: "spring", damping: 30, stiffness: 360, mass: 0.85 }}
+            className="fixed inset-x-0 bottom-0 z-50 flex h-[93dvh] flex-col overflow-hidden rounded-t-[24px] bg-canvas shadow-[0_-20px_60px_rgba(0,0,0,0.18)] focus:outline-none safe-bottom [contain:layout_paint]"
           >
             {view && (
               <ModalBody

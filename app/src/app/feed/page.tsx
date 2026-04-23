@@ -26,31 +26,63 @@ const FIXTURE_BRIEF: BriefRow = {
   updated_at: new Date().toISOString(),
 };
 
-async function loadFeedCards(useFixtures: boolean): Promise<FeedCardRow[]> {
-  if (useFixtures) return fixtureCards;
+export interface BatchGroup {
+  batch_id: string;
+  cards: FeedCardRow[];
+}
+
+async function loadBatches(useFixtures: boolean): Promise<BatchGroup[]> {
+  if (useFixtures) {
+    return [{ batch_id: fixtureCards[0]?.batch_id ?? "fx", cards: fixtureCards }];
+  }
   const supabase = await getServerSupabase();
   const nowIso = new Date().toISOString();
-  const { data: latest } = await supabase
+  const { data: recent } = await supabase
     .from("feed_cards")
-    .select("batch_id")
+    .select("batch_id, created_at")
     .eq("is_reserve", false)
     .or(`delivered_at.is.null,delivered_at.lte.${nowIso}`)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!latest) return [];
+    .limit(600);
+  if (!recent || recent.length === 0) return [];
+
+  const seen = new Set<string>();
+  const orderedBatchIds: string[] = [];
+  for (const r of recent) {
+    if (!seen.has(r.batch_id)) {
+      seen.add(r.batch_id);
+      orderedBatchIds.push(r.batch_id);
+      if (orderedBatchIds.length === 3) break;
+    }
+  }
+  if (orderedBatchIds.length === 0) return [];
+
   const { data: cards, error } = await supabase
     .from("feed_cards")
     .select("*")
-    .eq("batch_id", latest.batch_id)
+    .in("batch_id", orderedBatchIds)
     .eq("is_reserve", false)
     .or(`delivered_at.is.null,delivered_at.lte.${nowIso}`)
     .order("importance_score", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
-  const rows = cards ?? [];
-  await resolveHeroImages(rows);
-  return rows;
+
+  const byId = new Map<string, FeedCardRow[]>();
+  for (const id of orderedBatchIds) byId.set(id, []);
+  for (const c of cards ?? []) {
+    byId.get(c.batch_id)?.push(c);
+  }
+  const groups = orderedBatchIds.map((id) => ({
+    batch_id: id,
+    cards: byId.get(id) ?? [],
+  }));
+
+  // Resolve hero images only for the current batch. Previous batches keep
+  // whatever hero_image_url they already have (they were resolved on their
+  // own first load). Saves a handful of fetches per page render.
+  if (groups[0]) await resolveHeroImages(groups[0].cards);
+
+  return groups;
 }
 
 async function resolveHeroImages(rows: FeedCardRow[]): Promise<void> {
@@ -140,8 +172,8 @@ export default async function FeedPage() {
   const brief = await loadBrief(useFixtures);
   const tz = brief?.timezone ?? "Europe/Brussels";
 
-  const [feedRows, savedCards, manualJob, reserveCount] = await Promise.all([
-    loadFeedCards(useFixtures),
+  const [batches, savedCards, manualJob, reserveCount] = await Promise.all([
+    loadBatches(useFixtures),
     loadSavedCards(useFixtures),
     loadTodayManualJob(useFixtures, tz),
     loadReserveCount(useFixtures),
@@ -149,7 +181,7 @@ export default async function FeedPage() {
 
   return (
     <SpaShell
-      feedRows={feedRows}
+      batches={batches}
       brief={brief}
       savedCards={savedCards}
       manualJob={manualJob}

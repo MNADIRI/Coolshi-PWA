@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
+import type { BriefRow, FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
+import type { BatchGroup } from "@/app/feed/page";
 import { BatchTrigger } from "@/components/screens/batch-trigger";
 import type { CardView } from "@/lib/card-format";
 import { viewsFromRows } from "@/lib/card-format";
@@ -11,7 +12,8 @@ import { FeedItem } from "@/components/card/cards";
 import { ReadingModal } from "@/components/card/reading-modal";
 
 interface Props {
-  rows: FeedCardRow[];
+  batches: BatchGroup[];
+  brief: BriefRow | null;
   savedIds: Set<string>;
   useFixtures: boolean;
   onSavedChange: (row: FeedCardRow, saved: boolean) => void;
@@ -51,12 +53,27 @@ const GENERIC_POOL = [
   "well read. go live.",
 ];
 
-function slotFromBatch(batchId: string | null): "morning" | "evening" {
+function slotFromBatch(batchId: string | null, tz: string): "morning" | "evening" {
   if (!batchId) {
     return new Date().getUTCHours() < 10 ? "morning" : "evening";
   }
-  const hh = parseInt(batchId.slice(-2), 10);
-  return Number.isFinite(hh) && hh < 10 ? "morning" : "evening";
+  const date = batchDateFromId(batchId);
+  if (!date) return "morning";
+  const hour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: tz,
+    }).format(date),
+    10,
+  );
+  return hour < 12 ? "morning" : "evening";
+}
+
+function batchDateFromId(batchId: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})-(\d{2})$/.exec(batchId);
+  if (!m) return null;
+  return new Date(Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!, +m[4]!));
 }
 
 function stringHash(s: string): number {
@@ -65,15 +82,38 @@ function stringHash(s: string): number {
   return Math.abs(h);
 }
 
-function endMessage(batchId: string | null): string {
-  const slot = slotFromBatch(batchId);
+function endMessage(batchId: string | null, tz: string): string {
+  const slot = slotFromBatch(batchId, tz);
   const pool = [...(slot === "morning" ? MORNING_POOL : EVENING_POOL), ...GENERIC_POOL];
   const idx = stringHash(batchId ?? new Date().toISOString().slice(0, 13)) % pool.length;
   return pool[idx]!;
 }
 
+function formatBatchSeparator(
+  batchId: string,
+  tz: string,
+): { date: string; slot: "AM" | "PM" } | null {
+  const date = batchDateFromId(batchId);
+  if (!date) return null;
+  const hour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: tz,
+    }).format(date),
+    10,
+  );
+  const dateStr = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: tz,
+  }).format(date);
+  return { date: dateStr, slot: hour < 12 ? "AM" : "PM" };
+}
+
 export function FeedScreen({
-  rows,
+  batches,
+  brief,
   savedIds,
   useFixtures,
   onSavedChange,
@@ -82,10 +122,30 @@ export function FeedScreen({
 }: Props) {
   const [modalView, setModalView] = useState<CardView | null>(null);
 
-  const views = useMemo(() => viewsFromRows(rows), [rows]);
+  const tz = brief?.timezone ?? "Europe/Brussels";
+  const currentBatch = batches[0] ?? null;
+  const previousBatches = batches.slice(1);
+
+  const currentViews = useMemo(
+    () => viewsFromRows(currentBatch?.cards ?? []),
+    [currentBatch],
+  );
+  const previousViewGroups = useMemo(
+    () =>
+      previousBatches.map((b) => ({
+        batch_id: b.batch_id,
+        views: viewsFromRows(b.cards),
+        header: formatBatchSeparator(b.batch_id, tz),
+      })),
+    [previousBatches, tz],
+  );
+
   const headerDate = useMemo(todayHeader, []);
   const nextBrief = useMemo(nextBriefLabel, []);
-  const endText = useMemo(() => endMessage(rows[0]?.batch_id ?? null), [rows]);
+  const endText = useMemo(
+    () => endMessage(currentBatch?.batch_id ?? null, tz),
+    [currentBatch, tz],
+  );
 
   const recordOpen = useCallback(
     (view: CardView) => {
@@ -103,6 +163,8 @@ export function FeedScreen({
     [useFixtures],
   );
 
+  const empty = !currentBatch || currentBatch.cards.length === 0;
+
   return (
     <>
       <div className="pb-10">
@@ -115,7 +177,7 @@ export function FeedScreen({
           />
         </div>
 
-        {rows.length === 0 ? (
+        {empty ? (
           <EmptyState nextBrief={nextBrief} />
         ) : (
           <SkyProvider>
@@ -123,20 +185,34 @@ export function FeedScreen({
               <div className="px-5 pb-6">
                 <MusicPlayerCard />
               </div>
-              {views.map((v) => (
+              {currentViews.map((v) => (
                 <FeedItem key={v.row.id} view={v} onOpen={() => recordOpen(v)} />
               ))}
             </div>
-          </SkyProvider>
-        )}
 
-        {rows.length > 0 && (
-          <div className="mt-4 px-5 pb-10 pt-10 text-center">
-            <div className="mx-auto mb-6 h-[40px] w-px bg-divider-strong" />
-            <div className="font-display text-[22px] font-medium leading-[1.2] tracking-[-0.03em] text-ink [text-wrap:balance]">
-              {endText}
+            <div className="mt-4 px-5 pb-10 pt-10 text-center">
+              <div className="mx-auto mb-6 h-[40px] w-px bg-divider-strong" />
+              <div className="font-display text-[22px] font-medium leading-[1.2] tracking-[-0.03em] text-ink [text-wrap:balance]">
+                {endText}
+              </div>
             </div>
-          </div>
+
+            {previousViewGroups.map((g) => (
+              <div key={g.batch_id} className="flex flex-col">
+                {g.header && (
+                  <div className="px-5 pb-6 pt-4 text-center">
+                    <div className="mx-auto mb-4 h-px w-10 bg-divider" />
+                    <div className="font-text text-[10.5px] font-semibold uppercase tracking-[0.24em] text-ink-3">
+                      previous batch of {g.header.date} — {g.header.slot}
+                    </div>
+                  </div>
+                )}
+                {g.views.map((v) => (
+                  <FeedItem key={v.row.id} view={v} onOpen={() => recordOpen(v)} />
+                ))}
+              </div>
+            ))}
+          </SkyProvider>
         )}
       </div>
 

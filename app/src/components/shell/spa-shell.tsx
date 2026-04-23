@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { BriefRow, FeedCardRow, ManualBatchJobRow } from "@/lib/supabase/database.types";
+import type { BatchGroup } from "@/app/feed/page";
 import { TabShell, type TabDef } from "@/components/shell/tab-pager";
 import { FeedScreen } from "@/components/screens/feed-screen";
 import { BriefScreen } from "@/components/screens/brief-screen";
@@ -14,7 +15,7 @@ const TABS: TabDef[] = [
 ];
 
 interface Props {
-  feedRows: FeedCardRow[];
+  batches: BatchGroup[];
   brief: BriefRow | null;
   savedCards: FeedCardRow[];
   manualJob: ManualBatchJobRow | null;
@@ -23,7 +24,7 @@ interface Props {
 }
 
 export function SpaShell({
-  feedRows,
+  batches,
   brief,
   savedCards,
   manualJob,
@@ -46,7 +47,8 @@ export function SpaShell({
   return (
     <TabShell tabs={TABS}>
       <FeedScreen
-        rows={feedRows}
+        batches={batches}
+        brief={brief}
         savedIds={savedIdSet}
         useFixtures={useFixtures}
         onSavedChange={onSavedChange}
