@@ -13,7 +13,7 @@ export async function getServerSupabase() {
   }
   return createServerClient<Database>(url, key, {
     auth: {
-      flowType: "pkce",
+      flowType: "implicit",
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
