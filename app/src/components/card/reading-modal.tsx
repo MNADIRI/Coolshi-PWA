@@ -2,12 +2,11 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, useDragControls, useMotionValue, type PanInfo } from "framer-motion";
+import { Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CardView } from "@/lib/card-format";
 import type { FeedCardRow } from "@/lib/supabase/database.types";
-import { HeroMedia } from "./hero-media";
-import { hostnameOf } from "@/lib/url";
-import { Caption, Sources } from "./primitives";
+import { CardBody } from "./card-body";
 
 interface Props {
   view: CardView | null;
@@ -27,10 +26,17 @@ export function ReadingModal({
   const initial = view ? savedIds?.has(view.row.id) ?? false : false;
   const [saved, setSaved] = useState(initial);
   const [pending, setPending] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     setSaved(view ? savedIds?.has(view.row.id) ?? false : false);
   }, [view, savedIds]);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 3000);
+  };
 
   const toggleSaved = async () => {
     if (!view || pending) return;
@@ -57,6 +63,57 @@ export function ReadingModal({
       onSavedChange?.(row, !next);
     } finally {
       setPending(false);
+    }
+  };
+
+  const onShare = async () => {
+    if (!view || sharing) return;
+    setSharing(true);
+    const slug = view.row.public_slug;
+    const publicUrl = `${window.location.origin}/c/${slug}`;
+    const ogUrl = `/api/og/card/${slug}?format=story`;
+    try {
+      const res = await fetch(ogUrl);
+      if (!res.ok) throw new Error(`OG fetch failed: ${res.status}`);
+      const blob = await res.blob();
+      const file = new File([blob], `coolshi-${slug}.png`, {
+        type: "image/png",
+      });
+      const canShareFiles =
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] });
+
+      if (canShareFiles) {
+        await navigator.share({
+          files: [file],
+          url: publicUrl,
+          text: view.row.title,
+        });
+      } else {
+        // Desktop / unsupported browser: download PNG + copy URL.
+        const dlUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = dlUrl;
+        a.download = `coolshi-${slug}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(dlUrl);
+        try {
+          await navigator.clipboard.writeText(publicUrl);
+          showToast("Image saved · link copied");
+        } catch {
+          showToast("Image saved");
+        }
+      }
+    } catch (err) {
+      // AbortError = user cancelled the native share sheet → silent.
+      if ((err as Error).name !== "AbortError") {
+        console.error("share failed:", err);
+        showToast("Share failed — try again");
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -104,55 +161,42 @@ export function ReadingModal({
               <ModalBody
                 view={view}
                 saved={saved}
+                sharing={sharing}
                 onToggleSaved={toggleSaved}
+                onShare={onShare}
                 onHeaderPointerDown={startDrag}
               />
             )}
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-function LongFormBody({
-  longForm,
-  synthesis,
-}: {
-  longForm: string | null;
-  synthesis: string;
-}) {
-  const source = longForm?.trim() ? longForm : synthesis;
-  const paragraphs = source
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  return (
-    <div className="mb-[18px] space-y-[1.05em]">
-      {paragraphs.map((p, i) => (
-        <p
-          key={i}
-          className="font-text text-[15px] leading-[1.65] text-ink [text-wrap:pretty]"
+      {toast && (
+        <div
+          role="status"
+          className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+24px)] z-[60] -translate-x-1/2 rounded-pill border border-divider bg-paper/90 px-4 py-2 font-text text-[12px] text-ink shadow-md backdrop-blur-md"
         >
-          {p}
-        </p>
-      ))}
-    </div>
+          {toast}
+        </div>
+      )}
+    </Dialog.Root>
   );
 }
 
 function ModalBody({
   view,
   saved,
+  sharing,
   onToggleSaved,
+  onShare,
   onHeaderPointerDown,
 }: {
   view: CardView;
   saved: boolean;
+  sharing: boolean;
   onToggleSaved: () => void;
+  onShare: () => void;
   onHeaderPointerDown: (e: React.PointerEvent) => void;
 }) {
-  const showHero = true;
   return (
     <>
       <div
@@ -176,74 +220,35 @@ function ModalBody({
         >
           {saved ? "Saved" : "Save"}
         </button>
-        <Dialog.Close className="rounded-pill border border-divider-strong bg-transparent px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink">
-          Close
-        </Dialog.Close>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onShare}
+            disabled={sharing}
+            aria-label="Share this card"
+            className="flex items-center gap-1.5 rounded-pill border border-divider-strong bg-transparent px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink transition-opacity disabled:opacity-50"
+          >
+            {sharing ? (
+              <span
+                aria-hidden
+                className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent"
+              />
+            ) : (
+              <Share2 aria-hidden className="h-3.5 w-3.5" />
+            )}
+            Share
+          </button>
+          <Dialog.Close className="rounded-pill border border-divider-strong bg-transparent px-[14px] py-1.5 font-text text-[10.5px] font-semibold uppercase tracking-[0.12em] text-ink">
+            Close
+          </Dialog.Close>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-[60px] pt-3">
-        {showHero && (
-          <div className="mb-7 -mx-6 overflow-hidden">
-            <HeroMedia
-              imageUrl={view.row.hero_image_url}
-              title={view.row.title}
-              kicker={view.kicker}
-              style={{ aspectRatio: "4/5" }}
-            />
-          </div>
-        )}
-
         <Dialog.Title asChild>
           <span className="sr-only">{view.row.title}</span>
         </Dialog.Title>
-
-        {view.sourceNames.length > 0 && (
-          <div className="mb-7">
-            <Sources items={view.sourceNames} readTime={view.readTime} />
-          </div>
-        )}
-
-        <LongFormBody
-          longForm={view.row.long_form}
-          synthesis={view.row.synthesis}
-        />
-
-        {view.row.divergence_notes && (
-          <div className="mb-6 rounded-btn bg-divider/60 p-4">
-            <Caption className="mb-1.5">Divergence</Caption>
-            <p className="font-text text-[13.5px] italic leading-[1.55] text-ink-2">
-              {view.row.divergence_notes}
-            </p>
-          </div>
-        )}
-
-        {view.row.sources.length > 0 && (
-          <div className="mt-9">
-            <Caption className="mb-[14px]">Sources</Caption>
-            {view.row.sources.map((source) => {
-              const host = hostnameOf(source.url);
-              return (
-                <a
-                  key={source.url}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 border-t border-divider py-[14px]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-display text-[14px] font-medium tracking-[-0.015em] text-ink">
-                      {source.name}
-                    </div>
-                    <div className="truncate font-text text-[11px] text-ink-3">
-                      {host || source.url}
-                    </div>
-                  </div>
-                  <div className="text-ink-3">↗</div>
-                </a>
-              );
-            })}
-          </div>
-        )}
+        <CardBody view={view} />
       </div>
     </>
   );

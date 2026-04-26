@@ -19,6 +19,8 @@ function isPublic(pathname: string): boolean {
   if (pathname.startsWith("/workbox-")) return true;
   if (pathname.startsWith("/worker-")) return true;
   if (pathname.startsWith("/fallback-")) return true;
+  if (pathname.startsWith("/c/")) return true; // public card sharing surface
+  if (pathname.startsWith("/api/og/")) return true; // open graph image route
   if (pathname === "/") return true; // redirects to /feed which enforces auth
   return false;
 }

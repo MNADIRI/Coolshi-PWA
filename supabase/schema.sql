@@ -38,6 +38,8 @@ create table feed_cards (
   is_reserve boolean not null default false,
   released_at timestamptz,
   delivered_at timestamptz,
+  public_slug text not null unique default coolshi_short_id(),
+  is_public boolean not null default true,
   created_at timestamptz default now()
 );
 

@@ -74,6 +74,11 @@ that user end-to-end, and stops.
 - `is_reserve`: always `false`.
 - `delivered_at`: computed per user's delivery times (see Phase 4).
 - `user_id`: the claimed user_id from Phase 0.
+- `public_slug` and `is_public`: **auto-set by the database** —
+  do NOT include them in your INSERT column list. The DB generates
+  a unique 10-char base62 slug and defaults `is_public=true` for
+  every new card; these power the `/c/{slug}` public sharing
+  surface. Don't drop these columns from the schema.
 
 # Process
 

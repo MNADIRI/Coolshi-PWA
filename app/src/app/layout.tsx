@@ -16,7 +16,11 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://coolshi-orpin.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Coolshi",
   description: "Briefing personnel agentique",
   manifest: "/manifest.json",

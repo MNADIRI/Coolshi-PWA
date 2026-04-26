@@ -20,6 +20,7 @@
     "lucide-react": "^0.460.0",
     "next": "^15.5.0",
     "next-pwa": "^5.6.0",
+    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^2.5.4",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/web-push": "^3.6.4",
@@ -34,6 +36,7 @@
     "eslint": "^9.14.0",
     "eslint-config-next": "^15.5.0",
     "postcss": "^8.4.49",
+    "puppeteer-core": "^24.42.0",
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3"
   }

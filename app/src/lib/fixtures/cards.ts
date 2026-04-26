@@ -8,6 +8,8 @@ export const FIXTURE_BATCH_ID = "2026-04-21-07";
 export const fixtureCards: FeedCardRow[] = [
   {
     id: "fx-01",
+    public_slug: "fx01anthrop",
+    is_public: true,
     title: "Anthropic publie Claude Opus 4.7 avec fenêtre contextuelle de 1M tokens",
     synthesis:
       "Opus 4.7 étend le contexte à 1M tokens pour les clients Max, avec prompt caching par défaut. Les benchmarks agentiques montrent +12% vs 4.6 sur SWE-bench Verified, au prix d'une latence légèrement supérieure.",
@@ -30,6 +32,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-02",
+    public_slug: "fx02ecbrate",
+    is_public: true,
     title: "La BCE maintient ses taux, signale une pause prolongée",
     synthesis:
       "Christine Lagarde écarte toute baisse avant le T3. L'inflation sous-jacente reste à 2.4%, au-dessus de la cible. Les marchés obligataires européens se tendent, bund 10 ans +7bp.",
@@ -54,6 +58,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-03",
+    public_slug: "fx03lecanem",
+    is_public: true,
     title: "Nature publie un essai phase 3 sur lecanemab en prévention primaire",
     synthesis:
       "AHEAD 3-45 montre une réduction de 35% du déclin cognitif sur 4 ans chez des adultes asymptomatiques avec biomarqueurs positifs. Coût et tolérance restent les freins cliniques.",
@@ -76,6 +82,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-04",
+    public_slug: "fx04operatr",
+    is_public: true,
     title: "OpenAI déploie un agent de navigation web pour tous les comptes Plus",
     synthesis:
       "Operator devient gratuit pour Plus, avec sandbox VM persistante et memory cross-session. L'outil complète ChatGPT côté actions, sans remplacer le chat standard.",
@@ -98,6 +106,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-05",
+    public_slug: "fx05lemtemu",
+    is_public: true,
     title: "Le Monde enquête sur les pratiques de Temu en Europe",
     synthesis:
       "Après 18 mois d'investigation, Le Monde documente un réseau de fulfillment centers non-déclarés en Pologne et Allemagne, qui contournent les seuils de minimis européens révisés en 2025.",
@@ -119,6 +129,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-06",
+    public_slug: "fx06flashat",
+    is_public: true,
     title: "arXiv : un papier revendique une amélioration 4x sur FlashAttention-4",
     synthesis:
       "Tri Dao et al. présentent une version block-sparse avec kernels Hopper optimisés. Throughput mesuré 780 TFLOPS sur H200, soit 4.1x FlashAttention-3 en training Llama-3 70B.",
@@ -141,6 +153,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-07",
+    public_slug: "fx07stluc01",
+    is_public: true,
     title: "Saint-Luc ouvre un programme de télé-radiologie IA pour les gardes",
     synthesis:
       "Le CHU UCLouvain déploie une solution de pré-lecture sur les TDM crâniens nocturnes. Triage automatique des hémorragies avec escalade humaine systématique — pas d'auto-validation.",
@@ -163,6 +177,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-08",
+    public_slug: "fx08mlx100x",
+    is_public: true,
     title: "Apple publie un MLX 1.0 avec support training distribué",
     synthesis:
       "La 1.0 marque la sortie du mode expérimental et ajoute sharding tensor parallèle sur clusters M-series. Premiers benchmarks sur Mac Studio M4 Ultra cluster de 8 machines.",
@@ -185,6 +201,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-09",
+    public_slug: "fx09bebudgt",
+    is_public: true,
     title: "Belgique : accord budgétaire De Wever, coupes de 2.1 Md€ sur la santé",
     synthesis:
       "Le gouvernement fédéral trouve un compromis sur l'ajustement budgétaire. Les coupes santé incluent un recalibrage de l'INAMI et des nomenclatures hospitalières — détails techniques attendus en mai.",
@@ -207,6 +225,8 @@ export const fixtureCards: FeedCardRow[] = [
   },
   {
     id: "fx-10",
+    public_slug: "fx10browsr1",
+    is_public: true,
     title: "Stratechery : pourquoi les navigateurs IA tueront le search avant le chat",
     synthesis:
       "Ben Thompson argue que la transition search → IA passera par les navigateurs (Arc, Dia, Comet), pas par les chats standalone, car le contexte de navigation est un moat défendable face aux LLM providers.",

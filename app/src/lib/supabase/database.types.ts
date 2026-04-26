@@ -32,6 +32,8 @@ export type FeedCardRow = {
   released_at: string | null;
   delivered_at: string | null;
   user_id: string | null;
+  public_slug: string;
+  is_public: boolean;
   created_at: string;
 };
 
