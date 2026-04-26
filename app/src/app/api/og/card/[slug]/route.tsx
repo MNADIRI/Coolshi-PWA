@@ -4,7 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import { fixtureCards } from "@/lib/fixtures/cards";
 import type { Database } from "@/lib/supabase/database.types";
 
-export const runtime = "edge";
+// Node.js runtime (Fluid Compute) — Edge has a 1 MB function-size cap which
+// the bundled sky PNGs blow past. Node has 250 MB headroom and is Vercel's
+// recommended default.
+export const runtime = "nodejs";
 
 const USE_FIXTURES = process.env.NEXT_PUBLIC_USE_FIXTURES === "1";
 
