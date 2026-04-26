@@ -54,33 +54,24 @@ async function loadCard(slug: string): Promise<OgCardSubset | null> {
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://coolshi-orpin.vercel.app";
 
-const ARCHIVO_MEDIUM_URL = new URL(
-  "../../../../../../public/fonts/og/Archivo-Medium.ttf",
-  import.meta.url,
-);
-const ARCHIVO_SEMIBOLD_URL = new URL(
-  "../../../../../../public/fonts/og/Archivo-SemiBold.ttf",
-  import.meta.url,
-);
-const SPACE_GROTESK_MEDIUM_URL = new URL(
-  "../../../../../../public/fonts/og/SpaceGrotesk-Medium.ttf",
-  import.meta.url,
-);
-const SPACE_GROTESK_SEMIBOLD_URL = new URL(
-  "../../../../../../public/fonts/og/SpaceGrotesk-SemiBold.ttf",
-  import.meta.url,
-);
-const SKY_SQUARE_URL = new URL(
-  "../../../../../../public/og/sky-square.png",
-  import.meta.url,
-);
-const SKY_STORY_URL = new URL(
-  "../../../../../../public/og/sky-story.png",
-  import.meta.url,
-);
+// Static asset paths (served from /public). We fetch them at runtime via the
+// request origin rather than bundling — keeps the function bundle small
+// (Edge cap is 1 MB; the sky PNGs alone exceed that) and works identically
+// in dev and prod. CDN caches these forever after first hit.
+const ASSETS = {
+  archivoMedium: "/fonts/og/Archivo-Medium.ttf",
+  archivoSemiBold: "/fonts/og/Archivo-SemiBold.ttf",
+  spaceGroteskMedium: "/fonts/og/SpaceGrotesk-Medium.ttf",
+  spaceGroteskSemiBold: "/fonts/og/SpaceGrotesk-SemiBold.ttf",
+  skySquare: "/og/sky-square.png",
+  skyStory: "/og/sky-story.png",
+} as const;
 
-async function fetchBuffer(url: URL): Promise<ArrayBuffer> {
-  const res = await fetch(url);
+async function fetchAsset(origin: string, path: string): Promise<ArrayBuffer> {
+  const res = await fetch(`${origin}${path}`);
+  if (!res.ok) {
+    throw new Error(`asset fetch failed: ${path} → ${res.status}`);
+  }
   return res.arrayBuffer();
 }
 
@@ -126,6 +117,7 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
+  const origin = reqUrl.origin;
   const [
     archivoMedium,
     archivoSemiBold,
@@ -133,11 +125,11 @@ export async function GET(
     spaceGroteskSemiBold,
     skyBuf,
   ] = await Promise.all([
-    fetchBuffer(ARCHIVO_MEDIUM_URL),
-    fetchBuffer(ARCHIVO_SEMIBOLD_URL),
-    fetchBuffer(SPACE_GROTESK_MEDIUM_URL),
-    fetchBuffer(SPACE_GROTESK_SEMIBOLD_URL),
-    fetchBuffer(format === "story" ? SKY_STORY_URL : SKY_SQUARE_URL),
+    fetchAsset(origin, ASSETS.archivoMedium),
+    fetchAsset(origin, ASSETS.archivoSemiBold),
+    fetchAsset(origin, ASSETS.spaceGroteskMedium),
+    fetchAsset(origin, ASSETS.spaceGroteskSemiBold),
+    fetchAsset(origin, format === "story" ? ASSETS.skyStory : ASSETS.skySquare),
   ]);
   const skyDataUrl = bufferToDataUrl(skyBuf, "image/png");
 
