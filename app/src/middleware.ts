@@ -21,6 +21,8 @@ function isPublic(pathname: string): boolean {
   if (pathname.startsWith("/fallback-")) return true;
   if (pathname.startsWith("/c/")) return true; // public card sharing surface
   if (pathname.startsWith("/api/og/")) return true; // open graph image route
+  if (pathname.startsWith("/fonts/")) return true; // public font assets (used by OG route)
+  if (pathname.startsWith("/og/")) return true; // public OG image backgrounds
   if (pathname === "/") return true; // redirects to /feed which enforces auth
   return false;
 }
