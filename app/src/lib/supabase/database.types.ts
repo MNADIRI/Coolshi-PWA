@@ -115,6 +115,7 @@ export type PendingRunRow = {
   error_message: string | null;
   batch_id: string | null;
   notified_at: string | null;
+  retry_count: number;
 };
 
 export type Database = {

@@ -75,6 +75,27 @@ SELECT cron.schedule(
   $$
 );
 
+-- 4. Retry orchestrator. Every 5 min, scans pending_runs for stuck rows
+--    (orphan processing >15min, never-claimed pending >3min, retryable
+--    failed) and re-fires the Anthropic trigger up to 3 times before
+--    marking the run permanently failed and pushing a notification.
+SELECT cron.schedule(
+  'retry-orchestrator',
+  '*/5 * * * *',
+  $$
+  SELECT net.http_get(
+    url := 'https://coolshi-orpin.vercel.app/api/cron/retry-orchestrator',
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || (
+        SELECT decrypted_secret FROM vault.decrypted_secrets
+        WHERE name = 'cron_secret' LIMIT 1
+      )
+    ),
+    timeout_milliseconds := 60000
+  );
+  $$
+);
+
 -- Inspect afterwards:
 --   SELECT * FROM cron.job;                    -- one row per schedule
 --   SELECT * FROM cron.job_run_details         -- recent firings
