@@ -1,28 +1,8 @@
 "use server";
 
+import { fireRoutineTrigger } from "@/lib/routine-fire";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { getServiceSupabase } from "@/lib/supabase/service";
-
-async function fireRoutine(): Promise<boolean> {
-  const url = process.env.CLAUDE_ROUTINE_URL;
-  const token = process.env.CLAUDE_ROUTINE_TOKEN;
-  if (!url || !token) return false;
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "experimental-cc-routine-2026-04-01",
-      },
-      body: "{}",
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
 
 function todayInTz(tz: string): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -85,12 +65,18 @@ export async function triggerOnboardingBatchIfNeeded(): Promise<
       { onConflict: "user_id,requested_for_date" },
     );
 
-  await service
+  const { data: pending } = await service
     .from("pending_runs")
-    .insert({ user_id: user.id, slot: "manual" });
+    .insert({ user_id: user.id, slot: "manual" })
+    .select("id")
+    .single();
 
-  const ok = await fireRoutine();
-  if (!ok) return { fired: false, reason: "routine_unreachable" };
+  const fire = await fireRoutineTrigger({
+    supabase: service,
+    source: "onboarding",
+    pendingRunId: pending?.id ?? null,
+  });
+  if (!fire.ok) return { fired: false, reason: "routine_unreachable" };
 
   return { fired: true };
 }

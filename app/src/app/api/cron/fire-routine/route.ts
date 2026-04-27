@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fireRoutineTrigger } from "@/lib/routine-fire";
 import { getServiceSupabase } from "@/lib/supabase/service";
 
 // Vercel Cron hits this endpoint. It iterates all active briefs, and for
@@ -62,42 +63,6 @@ function slotForNow(
   return null;
 }
 
-async function fireRoutine(): Promise<{
-  ok: boolean;
-  status: number;
-  body: string;
-  sessionId: string | null;
-}> {
-  const url = process.env.CLAUDE_ROUTINE_URL;
-  const token = process.env.CLAUDE_ROUTINE_TOKEN;
-  if (!url || !token) {
-    return { ok: false, status: 0, body: "routine env not configured", sessionId: null };
-  }
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "experimental-cc-routine-2026-04-01",
-      },
-      body: "{}",
-    });
-    const text = await res.text();
-    let sessionId: string | null = null;
-    try {
-      const parsed = JSON.parse(text) as { claude_code_session_id?: string };
-      sessionId = parsed.claude_code_session_id ?? null;
-    } catch {
-      // non-JSON
-    }
-    return { ok: res.ok, status: res.status, body: text.slice(0, 300), sessionId };
-  } catch (e) {
-    return { ok: false, status: 0, body: String(e).slice(0, 200), sessionId: null };
-  }
-}
-
 export async function GET(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -118,7 +83,11 @@ export async function GET(req: Request) {
   const now = new Date();
   const cutoff = new Date(now.getTime() - LOOKBACK_SECONDS * 1000).toISOString();
 
-  const toFire: { user_id: string; slot: "am" | "pm" }[] = [];
+  const toFire: {
+    user_id: string;
+    slot: "am" | "pm";
+    pending_run_id: string;
+  }[] = [];
   for (const b of briefs) {
     if (!b.user_id) continue;
     const tz = b.timezone || "Europe/Brussels";
@@ -135,21 +104,29 @@ export async function GET(req: Request) {
       .maybeSingle();
     if (recent) continue;
 
-    const { error: insertErr } = await supabase
+    const { data: inserted, error: insertErr } = await supabase
       .from("pending_runs")
-      .insert({ user_id: b.user_id, slot });
-    if (insertErr) continue;
-    toFire.push({ user_id: b.user_id, slot });
+      .insert({ user_id: b.user_id, slot })
+      .select("id")
+      .single();
+    if (insertErr || !inserted) continue;
+    toFire.push({ user_id: b.user_id, slot, pending_run_id: inserted.id });
   }
 
   if (toFire.length === 0) {
     return NextResponse.json({ skipped: "no_users_in_window", evaluated: briefs.length });
   }
 
-  // Fire once per pending user. The routine's Phase 0 claims one row each time.
+  // Fire once per pending user. The routine's Phase 0 claims one row each
+  // time. fireRoutineTrigger logs each call to routine_fires for quota
+  // tracking by retry-orchestrator.
   const results: { ok: boolean; session_id: string | null }[] = [];
-  for (let i = 0; i < toFire.length; i++) {
-    const r = await fireRoutine();
+  for (const item of toFire) {
+    const r = await fireRoutineTrigger({
+      supabase,
+      source: "fire-routine",
+      pendingRunId: item.pending_run_id,
+    });
     results.push({ ok: r.ok, session_id: r.sessionId });
     if (!r.ok) break;
   }

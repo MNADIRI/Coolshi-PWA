@@ -102,7 +102,22 @@ export type AgentRunRow = {
   user_id: string | null;
 };
 
-export type PendingRunStatus = "pending" | "processing" | "completed" | "failed";
+export type PendingRunStatus = "pending" | "processing" | "completed" | "partial" | "failed";
+
+export type RoutineFireSource =
+  | "fire-routine"
+  | "retry-orchestrator"
+  | "manual-batch"
+  | "onboarding";
+
+export type RoutineFireRow = {
+  id: string;
+  pending_run_id: string | null;
+  fired_at: string;
+  source: RoutineFireSource;
+  http_status: number | null;
+  ok: boolean | null;
+};
 export type PendingRunSlot = "am" | "pm" | "manual";
 export type PendingRunRow = {
   id: string;
@@ -210,6 +225,15 @@ export type Database = {
         Row: { email: string; added_at: string };
         Insert: { email: string; added_at?: string };
         Update: Partial<{ email: string; added_at: string }>;
+        Relationships: [];
+      };
+      routine_fires: {
+        Row: RoutineFireRow;
+        Insert: Omit<RoutineFireRow, "id" | "fired_at"> & {
+          id?: string;
+          fired_at?: string;
+        };
+        Update: Partial<RoutineFireRow>;
         Relationships: [];
       };
     };

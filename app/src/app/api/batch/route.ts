@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fireRoutineTrigger } from "@/lib/routine-fire";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { getServiceSupabase } from "@/lib/supabase/service";
 import { notifyUser, isPushConfigured } from "@/lib/push";
@@ -32,42 +33,6 @@ async function userTimezone(supabase: Supa, userId: string): Promise<string> {
     .eq("is_active", true)
     .maybeSingle();
   return data?.timezone ?? "Europe/Brussels";
-}
-
-async function fireRoutine(): Promise<{
-  ok: boolean;
-  status: number;
-  body: string;
-  sessionId: string | null;
-}> {
-  const url = process.env.CLAUDE_ROUTINE_URL;
-  const token = process.env.CLAUDE_ROUTINE_TOKEN;
-  if (!url || !token) {
-    return { ok: false, status: 0, body: "routine env not configured", sessionId: null };
-  }
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "experimental-cc-routine-2026-04-01",
-      },
-      body: "{}",
-    });
-    const text = await res.text();
-    let sessionId: string | null = null;
-    try {
-      const parsed = JSON.parse(text) as { claude_code_session_id?: string };
-      sessionId = parsed.claude_code_session_id ?? null;
-    } catch {
-      // non-JSON
-    }
-    return { ok: res.ok, status: res.status, body: text.slice(0, 300), sessionId };
-  } catch (e) {
-    return { ok: false, status: 0, body: String(e).slice(0, 200), sessionId: null };
-  }
 }
 
 const COMPLETION_MESSAGES = [
@@ -165,13 +130,21 @@ export async function POST() {
 
   // Enqueue + fire via service role so routine can claim the row under RLS-bypass
   const service = getServiceSupabase();
-  await service.from("pending_runs").insert({ user_id: userId, slot: "manual" });
+  const { data: pending } = await service
+    .from("pending_runs")
+    .insert({ user_id: userId, slot: "manual" })
+    .select("id")
+    .single();
 
-  const fire = await fireRoutine();
+  const fire = await fireRoutineTrigger({
+    supabase: service,
+    source: "manual-batch",
+    pendingRunId: pending?.id ?? null,
+  });
   if (!fire.ok) {
     await supabase.from("manual_batch_jobs").delete().eq("id", inserted.id);
     return NextResponse.json(
-      { error: "trigger_failed", status: fire.status, detail: fire.body },
+      { error: "trigger_failed", status: fire.status },
       { status: 502 },
     );
   }
