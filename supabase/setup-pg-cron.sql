@@ -17,9 +17,9 @@ SELECT vault.create_secret(
   'Shared bearer token used by pg_cron to authenticate against Vercel /api/cron/* routes. Same value as Vercel env CRON_SECRET.'
 );
 
--- 2. Schedule the cron. Hits the Vercel route every 5 minutes; the route
---    handles deduplication via pending_runs.notified_at, so this is safe
---    to over-call.
+-- 2. Release-and-notify schedule. Hits the Vercel route every 5 minutes;
+--    the route handles deduplication via pending_runs.notified_at, so
+--    this is safe to over-call.
 SELECT cron.schedule(
   'release-and-notify',
   '*/5 * * * *',
@@ -33,6 +33,44 @@ SELECT cron.schedule(
       )
     ),
     timeout_milliseconds := 30000
+  );
+  $$
+);
+
+-- 3. Fire-routine schedules — moved off Vercel cron because Hobby plan
+--    can drift the firing by ~1h, eating into the 1h pre-delivery lead
+--    time. pg_cron is second-precise. The route itself filters per-user
+--    by tz so all users in any tz are evaluated at each firing.
+SELECT cron.schedule(
+  'fire-routine-am',
+  '0 4 * * *',
+  $$
+  SELECT net.http_get(
+    url := 'https://coolshi-orpin.vercel.app/api/cron/fire-routine',
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || (
+        SELECT decrypted_secret FROM vault.decrypted_secrets
+        WHERE name = 'cron_secret' LIMIT 1
+      )
+    ),
+    timeout_milliseconds := 60000
+  );
+  $$
+);
+
+SELECT cron.schedule(
+  'fire-routine-pm',
+  '0 15 * * *',
+  $$
+  SELECT net.http_get(
+    url := 'https://coolshi-orpin.vercel.app/api/cron/fire-routine',
+    headers := jsonb_build_object(
+      'Authorization', 'Bearer ' || (
+        SELECT decrypted_secret FROM vault.decrypted_secrets
+        WHERE name = 'cron_secret' LIMIT 1
+      )
+    ),
+    timeout_milliseconds := 60000
   );
   $$
 );
