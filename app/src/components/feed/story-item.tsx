@@ -1,47 +1,43 @@
 "use client";
 
-import { motion } from "framer-motion";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { motion, type PanInfo } from "framer-motion";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { CardView } from "@/lib/card-format";
+import { hostnameOf } from "@/lib/url";
 import { splitCardIntoScreens, type StoryScreen } from "@/lib/story-screens";
 import { HeroMedia } from "@/components/card/hero-media";
 import { StoryOverlays } from "./story-overlays";
 
 interface Props {
   view: CardView;
-  active: boolean; // is this the visible item?
   saved: boolean;
   sharing: boolean;
-  screenIndex: number; // current paragraph index (controlled by parent)
+  screenIndex: number;
   onScreenChange: (next: number) => void;
-  onAdvanceItem: () => void; // tap right past last screen
-  onPrevItem: () => void; // tap left before first screen
+  onExit: () => void; // vertical swipe → back to feed mode
   onSave: () => void;
   onShare: () => void;
-  onSources: () => void;
 }
 
-const TAP_BAR_HEIGHT = 68; // px reserved at bottom for the action bar (approx)
-const OVERLAY_AUTO_HIDE_MS = 3500;
+const TAP_BAR_HEIGHT = 64; // px reserved for the action bar
+const EXIT_OFFSET_RATIO = 0.14;
+const EXIT_VELOCITY = 600;
 
+// Reading-mode view of one card. Per v3 spec:
+//   - Horizontal tap nav between screens (clamped at boundaries)
+//   - Vertical swipe = exit to feed mode (item preserved)
+//   - Top progress segments + bottom action bar always visible (per spec
+//     point 3 — these are reading-mode-only, no auto-hide)
+//   - Sources rendered on the dedicated last screen (per spec point 4)
 export function StoryItem({
   view,
-  active,
   saved,
   sharing,
   screenIndex,
   onScreenChange,
-  onAdvanceItem,
-  onPrevItem,
+  onExit,
   onSave,
   onShare,
-  onSources,
 }: Props) {
   const screens = splitCardIntoScreens(view);
   const lastIndex = screens.length - 1;
@@ -59,60 +55,37 @@ export function StoryItem({
     return () => ro.disconnect();
   }, []);
 
-  // Overlays auto-hide. Reset timer on any user input. Only run while active.
-  const [overlaysVisible, setOverlaysVisible] = useState(true);
-  const hideTimer = useRef<number | null>(null);
-
-  const armHideTimer = useCallback(() => {
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(
-      () => setOverlaysVisible(false),
-      OVERLAY_AUTO_HIDE_MS,
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!active) {
-      setOverlaysVisible(true);
-      return;
-    }
-    armHideTimer();
-    return () => {
-      if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    };
-  }, [active, armHideTimer, screenIndex]);
-
   const onTapLeft = () => {
-    setOverlaysVisible(true);
-    armHideTimer();
     if (screenIndex > 0) onScreenChange(screenIndex - 1);
-    else onPrevItem();
+    // else clamped — vertical swipe is the exit
   };
-
   const onTapRight = () => {
-    setOverlaysVisible(true);
-    armHideTimer();
     if (screenIndex < lastIndex) onScreenChange(screenIndex + 1);
-    else onAdvanceItem();
+    // else clamped
   };
 
-  const onTapCenter = () => {
-    setOverlaysVisible((v) => {
-      const next = !v;
-      if (next) armHideTimer();
-      return next;
-    });
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    const o = info.offset.y;
+    const v = info.velocity.y;
+    const threshold = window.innerHeight * EXIT_OFFSET_RATIO;
+    if (Math.abs(o) > threshold || Math.abs(v) > EXIT_VELOCITY) {
+      onExit();
+    }
   };
 
   const currentScreen = screens[screenIndex] ?? screens[0]!;
   const contrast = currentScreen.kind === "hero" ? "light" : "dark";
 
   return (
-    <div
+    <motion.div
       ref={containerRef}
+      drag="y"
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={0.4}
+      onDragEnd={onDragEnd}
       className="relative h-full w-full overflow-hidden bg-canvas"
     >
-      {/* Sliding strip of screens. Translate by pixel offset measured from the container. */}
+      {/* Sliding strip of screens. */}
       <motion.div
         className="flex h-full"
         animate={{ x: -screenIndex * containerWidth }}
@@ -134,45 +107,39 @@ export function StoryItem({
         ))}
       </motion.div>
 
-      {/* Tap zones — above content, below overlays. Reserve bottom padding so
-          the action bar stays untouched. */}
+      {/* Tap zones. Reserve top space for the global tab bar AND the
+          progress segments, and bottom space for the action bar. */}
       <div
-        className="absolute inset-x-0 top-0 z-20 flex"
-        style={{ bottom: `calc(${TAP_BAR_HEIGHT}px + env(safe-area-inset-bottom))` }}
+        className="absolute inset-x-0 z-20 flex"
+        style={{
+          top: `calc(env(safe-area-inset-top) + 110px)`,
+          bottom: `calc(${TAP_BAR_HEIGHT}px + env(safe-area-inset-bottom))`,
+        }}
       >
         <button
           type="button"
           aria-label="Previous"
-          className="h-full w-[40%] focus:outline-none"
+          className="h-full w-1/2 focus:outline-none"
           onClick={onTapLeft}
         />
         <button
           type="button"
-          aria-label="Toggle overlays"
-          className="h-full w-[20%] focus:outline-none"
-          onClick={onTapCenter}
-        />
-        <button
-          type="button"
           aria-label="Next"
-          className="h-full w-[40%] focus:outline-none"
+          className="h-full w-1/2 focus:outline-none"
           onClick={onTapRight}
         />
       </div>
 
       <StoryOverlays
-        view={view}
         totalScreens={screens.length}
         currentScreen={screenIndex}
-        visible={overlaysVisible}
         saved={saved}
         sharing={sharing}
         contrast={contrast}
         onSave={onSave}
         onShare={onShare}
-        onSources={onSources}
       />
-    </div>
+    </motion.div>
   );
 }
 
@@ -191,7 +158,7 @@ function ScreenView({ screen, view }: { screen: StoryScreen; view: CardView }) {
   }
   if (screen.kind === "synthesis") {
     return (
-      <div className="flex h-full w-full items-center justify-center px-7 py-10 safe-top">
+      <div className="flex h-full w-full items-center justify-center px-7 py-32">
         <p className="font-display text-[26px] font-medium leading-[1.25] tracking-[-0.025em] text-ink [text-wrap:pretty]">
           {view.row.synthesis}
         </p>
@@ -200,23 +167,56 @@ function ScreenView({ screen, view }: { screen: StoryScreen; view: CardView }) {
   }
   if (screen.kind === "paragraph") {
     return (
-      <div className="flex h-full w-full items-center justify-center px-7 py-10 safe-top">
+      <div className="flex h-full w-full items-center justify-center px-7 py-32">
         <p className="font-text text-[19px] leading-[1.55] text-ink [text-wrap:pretty]">
           {screen.text}
         </p>
       </div>
     );
   }
-  // divergence
-  return (
-    <div className="flex h-full w-full items-center justify-center px-7 py-10 safe-top">
-      <div className="rounded-btn bg-divider/60 p-6">
-        <div className="mb-3 font-text text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
-          Divergence
+  if (screen.kind === "divergence") {
+    return (
+      <div className="flex h-full w-full items-center justify-center px-7 py-32">
+        <div className="rounded-btn bg-divider/60 p-6">
+          <div className="mb-3 font-text text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
+            Divergence
+          </div>
+          <p className="font-text text-[16px] italic leading-[1.55] text-ink-2 [text-wrap:pretty]">
+            {screen.text}
+          </p>
         </div>
-        <p className="font-text text-[16px] italic leading-[1.55] text-ink-2 [text-wrap:pretty]">
-          {screen.text}
-        </p>
+      </div>
+    );
+  }
+  // sources
+  return (
+    <div className="flex h-full w-full flex-col px-7 py-32">
+      <div className="mb-6 font-text text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
+        Sources
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {view.row.sources.map((source) => {
+          const host = hostnameOf(source.url);
+          return (
+            <a
+              key={source.url}
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 border-t border-divider py-[14px]"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-[15px] font-medium tracking-[-0.015em] text-ink">
+                  {source.name}
+                </div>
+                <div className="truncate font-text text-[11px] text-ink-3">
+                  {host || source.url}
+                </div>
+              </div>
+              <div className="text-ink-3">↗</div>
+            </a>
+          );
+        })}
       </div>
     </div>
   );

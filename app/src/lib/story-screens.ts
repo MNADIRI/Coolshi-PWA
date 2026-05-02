@@ -1,18 +1,18 @@
 import type { CardView } from "@/lib/card-format";
 
-// One screen = one full-viewport panel inside a story-style item.
-// Composition (per spec):
-//   1. hero          (image or sky + kicker + title)
-//   2. synthesis     (prose intro)
-//   3..N+2. paragraph (each long_form paragraph)
-//   last (optional). divergence (italic callout)
-//
-// Sources are NOT a screen — they're behind the bottom-bar Source button.
+// One screen = one full-viewport panel in reading mode (immersive).
+// Composition (per v3 spec):
+//   1.        hero        (image or sky + kicker + title)
+//   2.        synthesis   (prose intro)
+//   3..N+2.   paragraph   (each long_form paragraph)
+//   N+3.      divergence  (italic callout, optional)
+//   last.     sources     (always last slide per spec point 4)
 export type StoryScreen =
   | { kind: "hero" }
   | { kind: "synthesis" }
   | { kind: "paragraph"; text: string; index: number; total: number }
-  | { kind: "divergence"; text: string };
+  | { kind: "divergence"; text: string }
+  | { kind: "sources" };
 
 export function splitCardIntoScreens(view: CardView): StoryScreen[] {
   const screens: StoryScreen[] = [{ kind: "hero" }];
@@ -35,6 +35,10 @@ export function splitCardIntoScreens(view: CardView): StoryScreen[] {
   const div = view.row.divergence_notes?.trim();
   if (div) {
     screens.push({ kind: "divergence", text: div });
+  }
+
+  if (view.row.sources && view.row.sources.length > 0) {
+    screens.push({ kind: "sources" });
   }
 
   return screens;

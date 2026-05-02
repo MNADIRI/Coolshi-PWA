@@ -1,9 +1,7 @@
 "use client";
 
-import * as Dialog from "@radix-ui/react-dialog";
 import {
   motion,
-  useDragControls,
   useMotionValue,
   type PanInfo,
 } from "framer-motion";
@@ -11,13 +9,12 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 import type { CardView } from "@/lib/card-format";
-import { hostnameOf } from "@/lib/url";
 import type { FeedCardRow } from "@/lib/supabase/database.types";
+import { FeedPreview } from "./feed-preview";
 import { StoryItem } from "./story-item";
 
 interface Props {
@@ -25,14 +22,21 @@ interface Props {
   savedIds?: Set<string>;
   useFixtures?: boolean;
   onSavedChange?: (row: FeedCardRow, saved: boolean) => void;
-  // Optional CTA shown after the user advances past the last item's last
-  // paragraph (e.g. "show previous batches").
   endCta?: { label: string; onActivate: () => void } | null;
 }
 
 const SWIPE_THRESHOLD_RATIO = 0.18;
 const SWIPE_VELOCITY = 700;
+const POSITION_BAR_HEIGHT = 120;
+const POSITION_THUMB_HEIGHT = 18;
 
+// Per v3 spec: two distinct modes.
+// - "feed":    vertical snap between Instagram-style preview cards.
+//              Position bar visible (left, centered).
+//              Tap card → enter reading.
+// - "reading": single full-bleed StoryItem with horizontal tap nav,
+//              top progress segments + bottom action bar.
+//              Vertical swipe = exit back to feed (item preserved).
 export function StoryFeed({
   views,
   savedIds,
@@ -40,22 +44,18 @@ export function StoryFeed({
   onSavedChange,
   endCta,
 }: Props) {
-  // Slot 0..views.length-1 = items. Slot views.length = end-of-batch screen.
-  const totalSlots = views.length + 1;
+  const totalSlots = views.length + 1; // last slot = end-of-batch
 
-  const [currentSlot, setCurrentSlot] = useState(0);
-  const [paragraphIndex, setParagraphIndex] = useState<Record<string, number>>(
-    {},
-  );
+  const [mode, setMode] = useState<"feed" | "reading">("feed");
+  const [currentItem, setCurrentItem] = useState(0);
+  const [paragraphIdx, setParagraphIdx] = useState<Record<string, number>>({});
   const [savedSet, setSavedSet] = useState<Set<string>>(
     () => new Set(savedIds ?? []),
   );
   const [savePending, setSavePending] = useState<Set<string>>(new Set());
   const [shareItemId, setShareItemId] = useState<string | null>(null);
-  const [sourcesItem, setSourcesItem] = useState<CardView | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Sync savedSet when prop changes (e.g. server fetch updates).
   useEffect(() => {
     setSavedSet(new Set(savedIds ?? []));
   }, [savedIds]);
@@ -80,21 +80,27 @@ export function StoryFeed({
 
   const moveSlot = useCallback(
     (delta: 1 | -1) => {
-      setCurrentSlot((s) => {
+      setCurrentItem((s) => {
         const next = s + delta;
-        if (next < 0) return s;
-        if (next > totalSlots - 1) return s;
+        if (next < 0 || next > totalSlots - 1) return s;
         return next;
       });
     },
     [totalSlots],
   );
 
-  // y-axis drag for inter-item navigation. Always active per spec.
-  const y = useMotionValue(0);
-  const dragControls = useDragControls();
+  const enterReading = (itemIdx: number) => {
+    setCurrentItem(itemIdx);
+    setMode("reading");
+  };
 
-  const onDragEnd = useCallback(
+  const exitReading = () => {
+    setMode("feed");
+  };
+
+  // Vertical drag in FEED mode = snap between slots.
+  const y = useMotionValue(0);
+  const onFeedDragEnd = useCallback(
     (_: unknown, info: PanInfo) => {
       const o = info.offset.y;
       const v = info.velocity.y;
@@ -106,12 +112,10 @@ export function StoryFeed({
     [containerHeight, moveSlot, y],
   );
 
-  // Per-item paragraph index getter / setter.
-  const getParagraphIndex = (itemId: string) => paragraphIndex[itemId] ?? 0;
+  const getParagraphIndex = (itemId: string) => paragraphIdx[itemId] ?? 0;
   const setItemParagraph = (itemId: string, idx: number) =>
-    setParagraphIndex((m) => ({ ...m, [itemId]: idx }));
+    setParagraphIdx((m) => ({ ...m, [itemId]: idx }));
 
-  // Save action — same flow as the old reading modal.
   const onSaveItem = async (view: CardView) => {
     const id = view.row.id;
     if (savePending.has(id)) return;
@@ -161,8 +165,6 @@ export function StoryFeed({
     }
   };
 
-  // Share action — fetches the OG story PNG and uses Web Share API on
-  // mobile, falls back to download + clipboard on desktop.
   const onShareItem = async (view: CardView) => {
     const id = view.row.id;
     if (shareItemId) return;
@@ -212,11 +214,35 @@ export function StoryFeed({
     }
   };
 
-  // Position bar (left) — proportional progress through the batch.
-  const positionPct = useMemo(() => {
-    if (totalSlots <= 1) return 100;
-    return Math.min(100, ((currentSlot + 1) / totalSlots) * 100);
-  }, [currentSlot, totalSlots]);
+  // ----- READING MODE -----
+  if (mode === "reading") {
+    const view = views[currentItem];
+    if (!view) {
+      // safety: if currentItem somehow points past views, fall back to feed
+      setMode("feed");
+      return null;
+    }
+    return (
+      <div className="relative h-full w-full overflow-hidden bg-canvas">
+        <StoryItem
+          view={view}
+          saved={savedSet.has(view.row.id)}
+          sharing={shareItemId === view.row.id}
+          screenIndex={getParagraphIndex(view.row.id)}
+          onScreenChange={(p) => setItemParagraph(view.row.id, p)}
+          onExit={exitReading}
+          onSave={() => void onSaveItem(view)}
+          onShare={() => void onShareItem(view)}
+        />
+        {toast && <Toast message={toast} />}
+      </div>
+    );
+  }
+
+  // ----- FEED MODE -----
+  const positionFraction =
+    totalSlots > 1 ? currentItem / (totalSlots - 1) : 0;
+  const thumbTop = positionFraction * (POSITION_BAR_HEIGHT - POSITION_THUMB_HEIGHT);
 
   return (
     <div
@@ -226,15 +252,13 @@ export function StoryFeed({
       <motion.div
         style={{ y }}
         drag="y"
-        dragControls={dragControls}
-        dragListener={true}
         dragConstraints={{
           top: -((totalSlots - 1) * containerHeight),
           bottom: 0,
         }}
         dragElastic={0.18}
-        onDragEnd={onDragEnd}
-        animate={{ y: -currentSlot * containerHeight }}
+        onDragEnd={onFeedDragEnd}
+        animate={{ y: -currentItem * containerHeight }}
         transition={{
           type: "spring",
           stiffness: 320,
@@ -244,9 +268,7 @@ export function StoryFeed({
         className="flex h-full flex-col"
       >
         {views.map((view, i) => {
-          // Render only current ± 1 for perf. Distant slots stay as empty
-          // placeholders so the layout stack height stays correct.
-          const visible = Math.abs(i - currentSlot) <= 1;
+          const visible = Math.abs(i - currentItem) <= 1;
           return (
             <div
               key={view.row.id}
@@ -254,19 +276,7 @@ export function StoryFeed({
               style={{ height: containerHeight || "100dvh" }}
             >
               {visible && (
-                <StoryItem
-                  view={view}
-                  active={i === currentSlot}
-                  saved={savedSet.has(view.row.id)}
-                  sharing={shareItemId === view.row.id}
-                  screenIndex={getParagraphIndex(view.row.id)}
-                  onScreenChange={(next) => setItemParagraph(view.row.id, next)}
-                  onAdvanceItem={() => moveSlot(1)}
-                  onPrevItem={() => moveSlot(-1)}
-                  onSave={() => void onSaveItem(view)}
-                  onShare={() => void onShareItem(view)}
-                  onSources={() => setSourcesItem(view)}
-                />
+                <FeedPreview view={view} onTap={() => enterReading(i)} />
               )}
             </div>
           );
@@ -276,87 +286,38 @@ export function StoryFeed({
           className="w-full shrink-0"
           style={{ height: containerHeight || "100dvh" }}
         >
-          {Math.abs(views.length - currentSlot) <= 1 && (
+          {Math.abs(views.length - currentItem) <= 1 && (
             <EndOfBatch endCta={endCta} onPrev={() => moveSlot(-1)} />
           )}
         </div>
       </motion.div>
 
-      {/* Left position bar — transparent, passive */}
+      {/* Position bar — only in feed mode, centered vertically on left */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 z-40 w-[3px]"
+        className="pointer-events-none absolute left-2 top-1/2 z-40 -translate-y-1/2"
+        style={{ height: POSITION_BAR_HEIGHT }}
       >
-        <div className="relative h-full w-full bg-ink/[0.08]">
+        <div className="relative h-full w-[3px] rounded-full bg-ink/15">
           <div
-            className="absolute left-0 top-0 w-full bg-ink/55 transition-all duration-300"
-            style={{ height: `${positionPct}%` }}
+            className="absolute left-0 w-full rounded-full bg-ink/70 transition-all duration-300"
+            style={{ top: thumbTop, height: POSITION_THUMB_HEIGHT }}
           />
         </div>
       </div>
 
-      {/* Sources sheet */}
-      <Dialog.Root
-        open={sourcesItem !== null}
-        onOpenChange={(o) => !o && setSourcesItem(null)}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]" />
-          <Dialog.Content
-            asChild
-            aria-describedby={undefined}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[80dvh] overflow-hidden rounded-t-[24px] bg-canvas shadow-[0_-20px_60px_rgba(0,0,0,0.18)] safe-bottom"
-          >
-            <div>
-              <div className="flex items-center justify-between px-5 pb-2 pt-3">
-                <div className="font-text text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-3">
-                  Sources
-                </div>
-                <Dialog.Close className="rounded-pill border border-divider-strong px-3 py-1 font-text text-[10px] font-semibold uppercase tracking-[0.12em] text-ink">
-                  Close
-                </Dialog.Close>
-              </div>
-              <Dialog.Title asChild>
-                <span className="sr-only">Sources for {sourcesItem?.row.title}</span>
-              </Dialog.Title>
-              <div className="max-h-[64dvh] overflow-y-auto px-5 pb-6">
-                {sourcesItem?.row.sources.map((source) => {
-                  const host = hostnameOf(source.url);
-                  return (
-                    <a
-                      key={source.url}
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 border-t border-divider py-[14px]"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="font-display text-[14px] font-medium tracking-[-0.015em] text-ink">
-                          {source.name}
-                        </div>
-                        <div className="truncate font-text text-[11px] text-ink-3">
-                          {host || source.url}
-                        </div>
-                      </div>
-                      <div className="text-ink-3">↗</div>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      {toast && <Toast message={toast} />}
+    </div>
+  );
+}
 
-      {/* Toast */}
-      {toast && (
-        <div
-          role="status"
-          className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+24px)] z-[60] -translate-x-1/2 rounded-pill border border-divider bg-paper/90 px-4 py-2 font-text text-[12px] text-ink shadow-md backdrop-blur-md"
-        >
-          {toast}
-        </div>
-      )}
+function Toast({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+24px)] z-[60] -translate-x-1/2 rounded-pill border border-divider bg-paper/90 px-4 py-2 font-text text-[12px] text-ink shadow-md backdrop-blur-md"
+    >
+      {message}
     </div>
   );
 }
@@ -374,7 +335,9 @@ function EndOfBatch({
       <div className="font-display text-[24px] font-medium leading-[1.2] tracking-[-0.025em] text-ink [text-wrap:balance]">
         That&apos;s the batch.
       </div>
-      <div className="font-text text-[13px] text-ink-3">Swipe up for the previous article.</div>
+      <div className="font-text text-[13px] text-ink-3">
+        Swipe down for the previous article.
+      </div>
       {endCta && (
         <button
           type="button"
