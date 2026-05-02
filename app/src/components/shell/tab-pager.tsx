@@ -6,10 +6,6 @@ import { ThemeToggle } from "@/components/shell/theme-toggle";
 export interface TabDef {
   id: string;
   label: string;
-  // When true, the panel renders without the default top/bottom padding
-  // and without inner scroll — its contents own the full viewport.
-  // Used for the immersive story feed.
-  fullBleed?: boolean;
 }
 
 interface Props {
@@ -115,30 +111,19 @@ export function TabShell({ tabs, children, initial = 0 }: Props) {
               : "transform 360ms cubic-bezier(0.2,0.8,0.2,1)",
           }}
         >
-          {panels.map((panel, i) => {
-            const fullBleed = tabs[i]?.fullBleed === true;
-            return (
-              <div
-                key={i}
-                className={
-                  fullBleed
-                    ? "h-full overflow-hidden"
-                    : "h-full overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]"
-                }
-                style={{
-                  width: `${100 / tabs.length}%`,
-                  ...(fullBleed
-                    ? {}
-                    : {
-                        paddingTop: "calc(104px + env(safe-area-inset-top))",
-                        paddingBottom: "calc(40px + env(safe-area-inset-bottom))",
-                      }),
-                }}
-              >
-                {panel}
-              </div>
-            );
-          })}
+          {panels.map((panel, i) => (
+            <div
+              key={i}
+              className="h-full overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]"
+              style={{
+                width: `${100 / tabs.length}%`,
+                paddingTop: "calc(104px + env(safe-area-inset-top))",
+                paddingBottom: "calc(40px + env(safe-area-inset-bottom))",
+              }}
+            >
+              {panel}
+            </div>
+          ))}
         </div>
       </div>
     </div>
