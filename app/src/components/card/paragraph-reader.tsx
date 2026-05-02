@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import type { CardView } from "@/lib/card-format";
 import { hostnameOf } from "@/lib/url";
 import { Caption, Sources } from "./primitives";
@@ -15,9 +15,6 @@ type Slide =
   | { kind: "paragraph"; text: string; index: number; total: number }
   | { kind: "divergence"; text: string };
 
-// Title is rendered by the parent inside the permanent hero, so we don't
-// repeat it as a slide. The very first slide on entry = synthesis (or
-// the first long_form paragraph if the card has no synthesis).
 function buildSlides(view: CardView): Slide[] {
   const slides: Slide[] = [];
   if (view.row.synthesis?.trim()) slides.push({ kind: "synthesis" });
@@ -37,20 +34,34 @@ function buildSlides(view: CardView): Slide[] {
   return slides;
 }
 
-// Reading modal body. Per latest spec:
-//   - No hero — full space for text (title/synthesis/paragraphs/divergence)
-//   - Stories-style segments at top
-//   - Horizontal tap nav between slides (clamped at boundaries)
-//   - Sources are NOT visible by default — they sit below the slide area
-//     and become reachable by vertical scroll. The parent container in
-//     ReadingModal handles that scroll (overflow-y-auto).
+// Modal body content. The parent in ReadingModal is overflow-y-auto.
+// We measure the parent's visible height and pin the slide wrapper to
+// exactly that height — that way the sources block sitting below sits
+// off-screen by default and the user reaches it by scrolling the modal
+// body. Tap-to-navigate uses onClick on the slide area (with X-hit
+// detection); no absolute button overlay so vertical scroll inside a
+// long paragraph works natively.
 export function ParagraphReader({ view }: Props) {
   const slides = buildSlides(view);
   const lastIdx = slides.length - 1;
   const [idx, setIdx] = useState(0);
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const slideAreaRef = useRef<HTMLDivElement>(null);
+  const [parentHeight, setParentHeight] = useState(0);
   const [width, setWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const parent = wrapper.parentElement;
+    if (!parent) return;
+    const measureParent = () => setParentHeight(parent.clientHeight);
+    measureParent();
+    const ro = new ResizeObserver(measureParent);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, []);
 
   useLayoutEffect(() => {
     const el = slideAreaRef.current;
@@ -60,18 +71,28 @@ export function ParagraphReader({ view }: Props) {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [parentHeight]);
 
   const goPrev = () => setIdx((i) => Math.max(0, i - 1));
   const goNext = () => setIdx((i) => Math.min(lastIdx, i + 1));
 
+  const onAreaClick = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width / 2) goPrev();
+    else goNext();
+  };
+
   return (
     <>
-      {/* Slide area — takes EXACTLY the full available height of the
-          modal body so the sources block below sits off-screen by default
-          (border-t on sources never appears inside the viewport). */}
-      <div className="flex h-full flex-col">
-        {/* Progress segments (only when more than one slide). */}
+      {/* Slide wrapper — explicit pixel height = modal body's visible
+          area. Sources sit below this height = off-screen by default. */}
+      <div
+        ref={wrapperRef}
+        className="flex flex-col px-6 pt-5"
+        style={{ height: parentHeight || undefined }}
+      >
+        {/* Progress segments — only when there's more than one slide. */}
         {slides.length > 1 && (
           <div
             aria-hidden
@@ -91,11 +112,12 @@ export function ParagraphReader({ view }: Props) {
           </div>
         )}
 
-        {/* Horizontal slide strip. Each slide is the full width of the area
-            and stretches to take all the remaining vertical space. */}
+        {/* Slide area. Click anywhere → goPrev/goNext based on X. No
+            absolute overlay, so each slide's overflow-y-auto works. */}
         <div
           ref={slideAreaRef}
-          className="relative min-h-0 flex-1 overflow-hidden"
+          className="relative min-h-0 flex-1 cursor-pointer overflow-hidden"
+          onClick={onAreaClick}
         >
           <motion.div
             className="flex h-full"
@@ -118,31 +140,33 @@ export function ParagraphReader({ view }: Props) {
             ))}
           </motion.div>
 
-          {/* Tap zones overlay the slide area. Disabled at boundaries so
-              repeated taps at the end don't make a sound. */}
-          <div className="absolute inset-0 z-10 flex">
-            <button
-              type="button"
-              onClick={goPrev}
-              aria-label="Previous"
-              disabled={idx === 0}
-              className="h-full w-1/2 focus:outline-none disabled:cursor-default"
-            />
-            <button
-              type="button"
-              onClick={goNext}
-              aria-label="Next"
-              disabled={idx === lastIdx}
-              className="h-full w-1/2 focus:outline-none disabled:cursor-default"
-            />
-          </div>
+          {/* Hidden buttons for screen readers / keyboard. */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              goPrev();
+            }}
+            disabled={idx === 0}
+            aria-label="Previous"
+            className="sr-only"
+          />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              goNext();
+            }}
+            disabled={idx === lastIdx}
+            aria-label="Next"
+            className="sr-only"
+          />
         </div>
       </div>
 
-      {/* Sources — sit below the slide area; revealed by scrolling the
-          modal body. Big top margin so the user can tell they've left the
-          reading area. */}
-      <div className="mt-16 shrink-0 border-t border-divider pt-6">
+      {/* Sources — sit below the slide wrapper. Revealed by scrolling
+          the modal body. Top margin + divider so it's visually distinct. */}
+      <div className="mt-16 shrink-0 border-t border-divider px-6 pb-6 pt-6">
         {view.sourceNames.length > 0 && (
           <div className="mb-3">
             <Sources items={view.sourceNames} readTime={view.readTime} />
@@ -181,13 +205,11 @@ export function ParagraphReader({ view }: Props) {
 }
 
 function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
-  // min-h-full + items-center: short text stays vertically centred; long
-  // text scrolls inside its own slide (the parent slide div is
-  // overflow-y-auto). Either way the text is never cut by the sources
-  // border below.
+  // Top-aligned with vertical padding. Long text reads from top and
+  // scrolls naturally inside its slide; short text fills naturally.
   if (slide.kind === "synthesis") {
     return (
-      <div className="flex min-h-full items-center px-1 py-2">
+      <div className="px-1 py-3">
         <p className="font-display text-[21px] font-medium leading-[1.3] tracking-[-0.02em] text-ink [text-wrap:pretty]">
           {view.row.synthesis}
         </p>
@@ -196,7 +218,7 @@ function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
   }
   if (slide.kind === "paragraph") {
     return (
-      <div className="flex min-h-full items-center px-1 py-2">
+      <div className="px-1 py-3">
         <p className="font-text text-[18px] leading-[1.6] text-ink [text-wrap:pretty]">
           {slide.text}
         </p>
@@ -205,8 +227,8 @@ function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
   }
   // divergence
   return (
-    <div className="flex min-h-full items-center px-1 py-2">
-      <div className="w-full rounded-btn bg-divider/60 p-5">
+    <div className="px-1 py-3">
+      <div className="rounded-btn bg-divider/60 p-5">
         <Caption className="mb-2">Divergence</Caption>
         <p className="font-text text-[16px] italic leading-[1.55] text-ink-2 [text-wrap:pretty]">
           {slide.text}
