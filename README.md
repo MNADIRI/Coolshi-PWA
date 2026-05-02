@@ -1,5 +1,25 @@
 # Coolshi
 
+> **Sibling repo: `twobatch` (iOS app)**
+>
+> A separate iOS-native React Native (Expo) app called **twobatch** is a
+> second client of this same backend. It is **not** a rewrite of Coolshi —
+> Coolshi keeps running as the web/PWA surface and the agentic routine.
+>
+> What is shared between the two repos:
+> - `supabase/` — schema, migrations, seed, pg_cron setup
+> - `routines/coolshi-briefing/` — the Claude Code routine (kept named
+>   `coolshi-briefing` so the deployed Anthropic trigger doesn't break)
+>
+> **Any change to `supabase/` or `routines/` here MUST be mirrored to the
+> twobatch repo** (or applied via Supabase MCP, which is shared). See
+> [`MIGRATION_NOTES.md`](./MIGRATION_NOTES.md) for the inventory of
+> what's shared, what's Coolshi-only, and what's being ported.
+>
+> twobatch repo: <TBD — Marwan creates the GitHub remote and fills this in>.
+
+---
+
 Personal agentic news aggregator. Three active components:
 
 - **`app/`** — Next.js 15 PWA (Vercel)
