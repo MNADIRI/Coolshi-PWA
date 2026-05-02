@@ -11,13 +11,15 @@ interface Props {
 }
 
 type Slide =
-  | { kind: "title" }
   | { kind: "synthesis" }
   | { kind: "paragraph"; text: string; index: number; total: number }
   | { kind: "divergence"; text: string };
 
+// Title is rendered by the parent inside the permanent hero, so we don't
+// repeat it as a slide. The very first slide on entry = synthesis (or
+// the first long_form paragraph if the card has no synthesis).
 function buildSlides(view: CardView): Slide[] {
-  const slides: Slide[] = [{ kind: "title" }];
+  const slides: Slide[] = [];
   if (view.row.synthesis?.trim()) slides.push({ kind: "synthesis" });
   const long = view.row.long_form?.trim();
   if (long) {
@@ -178,20 +180,6 @@ export function ParagraphReader({ view }: Props) {
 }
 
 function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
-  if (slide.kind === "title") {
-    return (
-      <div className="flex h-full flex-col justify-center px-1">
-        {view.kicker && (
-          <div className="mb-5 font-text text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-3">
-            {view.kicker}
-          </div>
-        )}
-        <h1 className="font-display text-[30px] font-medium leading-[1.15] tracking-[-0.03em] text-ink [text-wrap:balance]">
-          {view.row.title}
-        </h1>
-      </div>
-    );
-  }
   if (slide.kind === "synthesis") {
     return (
       <div className="flex h-full items-center px-1">

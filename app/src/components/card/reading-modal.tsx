@@ -6,6 +6,7 @@ import { Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CardView } from "@/lib/card-format";
 import type { FeedCardRow } from "@/lib/supabase/database.types";
+import { HeroMedia } from "./hero-media";
 import { ParagraphReader } from "./paragraph-reader";
 
 interface Props {
@@ -244,7 +245,18 @@ function ModalBody({
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-6 pb-6 pt-3">
+      {/* Hero — permanent in intra-item view (16:9 with title overlay).
+          Sits between the header and the scrollable body. */}
+      <div className="shrink-0 overflow-hidden">
+        <HeroMedia
+          imageUrl={view.row.hero_image_url}
+          title={view.row.title}
+          kicker={view.kicker}
+          style={{ aspectRatio: "16/9" }}
+        />
+      </div>
+
+      <div className="flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden px-6 pb-6 pt-5">
         <Dialog.Title asChild>
           <span className="sr-only">{view.row.title}</span>
         </Dialog.Title>
