@@ -6,7 +6,7 @@ import { Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { CardView } from "@/lib/card-format";
 import type { FeedCardRow } from "@/lib/supabase/database.types";
-import { CardBody } from "./card-body";
+import { ParagraphReader } from "./paragraph-reader";
 
 interface Props {
   view: CardView | null;
@@ -244,11 +244,11 @@ function ModalBody({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-[60px] pt-3">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden px-6 pb-6 pt-3">
         <Dialog.Title asChild>
           <span className="sr-only">{view.row.title}</span>
         </Dialog.Title>
-        <CardBody view={view} />
+        <ParagraphReader view={view} />
       </div>
     </>
   );
