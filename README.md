@@ -16,7 +16,7 @@
 > [`MIGRATION_NOTES.md`](./MIGRATION_NOTES.md) for the inventory of
 > what's shared, what's Coolshi-only, and what's being ported.
 >
-> twobatch repo: <TBD — Marwan creates the GitHub remote and fills this in>.
+> twobatch repo: https://github.com/MNADIRI/twobatch (private).
 
 ---
 
