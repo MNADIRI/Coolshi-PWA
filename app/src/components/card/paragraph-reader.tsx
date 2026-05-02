@@ -67,9 +67,10 @@ export function ParagraphReader({ view }: Props) {
 
   return (
     <>
-      {/* Slide area — takes the full available height of the modal body so
-          the sources block below sits off-screen by default. */}
-      <div className="flex min-h-full flex-col">
+      {/* Slide area — takes EXACTLY the full available height of the
+          modal body so the sources block below sits off-screen by default
+          (border-t on sources never appears inside the viewport). */}
+      <div className="flex h-full flex-col">
         {/* Progress segments (only when more than one slide). */}
         {slides.length > 1 && (
           <div
@@ -109,7 +110,7 @@ export function ParagraphReader({ view }: Props) {
             {slides.map((slide, i) => (
               <div
                 key={i}
-                className="h-full shrink-0"
+                className="h-full shrink-0 overflow-y-auto"
                 style={{ width: width || "100%" }}
               >
                 <SlideView slide={slide} view={view} />
@@ -180,9 +181,13 @@ export function ParagraphReader({ view }: Props) {
 }
 
 function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
+  // min-h-full + items-center: short text stays vertically centred; long
+  // text scrolls inside its own slide (the parent slide div is
+  // overflow-y-auto). Either way the text is never cut by the sources
+  // border below.
   if (slide.kind === "synthesis") {
     return (
-      <div className="flex h-full items-center px-1">
+      <div className="flex min-h-full items-center px-1 py-2">
         <p className="font-display text-[21px] font-medium leading-[1.3] tracking-[-0.02em] text-ink [text-wrap:pretty]">
           {view.row.synthesis}
         </p>
@@ -191,7 +196,7 @@ function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
   }
   if (slide.kind === "paragraph") {
     return (
-      <div className="flex h-full items-center px-1">
+      <div className="flex min-h-full items-center px-1 py-2">
         <p className="font-text text-[18px] leading-[1.6] text-ink [text-wrap:pretty]">
           {slide.text}
         </p>
@@ -200,7 +205,7 @@ function SlideView({ slide, view }: { slide: Slide; view: CardView }) {
   }
   // divergence
   return (
-    <div className="flex h-full items-center px-1">
+    <div className="flex min-h-full items-center px-1 py-2">
       <div className="w-full rounded-btn bg-divider/60 p-5">
         <Caption className="mb-2">Divergence</Caption>
         <p className="font-text text-[16px] italic leading-[1.55] text-ink-2 [text-wrap:pretty]">
