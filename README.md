@@ -3,18 +3,29 @@
 > **Sibling repo: `twobatch` (iOS app)**
 >
 > A separate iOS-native React Native (Expo) app called **twobatch** is a
-> second client of this same backend. It is **not** a rewrite of Coolshi —
-> Coolshi keeps running as the web/PWA surface and the agentic routine.
+> second client product. It is **not** a rewrite of Coolshi — Coolshi
+> keeps running as the web/PWA surface and its own Supabase project.
 >
-> What is shared between the two repos:
-> - `supabase/` — schema, migrations, seed, pg_cron setup
-> - `routines/coolshi-briefing/` — the Claude Code routine (kept named
->   `coolshi-briefing` so the deployed Anthropic trigger doesn't break)
+> **What is shared as a TEMPLATE between the two repos** (mirror file
+> changes both ways, but each app applies the SQL to its own project):
+> - `supabase/schema.sql`, `supabase/migrations/*` — schema and migrations
+> - `routines/coolshi-briefing/SKILL.md` — the Claude Code routine
+>   prompt (kept named `coolshi-briefing` because the *Coolshi-side*
+>   deployed Anthropic trigger is bound to it)
 >
-> **Any change to `supabase/` or `routines/` here MUST be mirrored to the
-> twobatch repo** (or applied via Supabase MCP, which is shared). See
-> [`MIGRATION_NOTES.md`](./MIGRATION_NOTES.md) for the inventory of
-> what's shared, what's Coolshi-only, and what's being ported.
+> **What is NOT shared:**
+> - The Supabase **project instance** — twobatch has its own, with its
+>   own `auth.users`, its own data, its own DB URL + keys.
+> - Anthropic remote triggers — each project gets its own deployed
+>   trigger pointing at its own Supabase MCP.
+> - Push credentials, ad units, anything else that's per-product.
+>
+> Why this matters: a user who signs up on the Coolshi PWA is **not**
+> automatically a twobatch user. The two products keep their own
+> populations.
+>
+> See [`MIGRATION_NOTES.md`](./MIGRATION_NOTES.md) for the full
+> inventory and the cross-repo sync rules.
 >
 > twobatch repo: https://github.com/MNADIRI/twobatch (private).
 

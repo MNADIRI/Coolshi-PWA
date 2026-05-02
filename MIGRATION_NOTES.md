@@ -19,15 +19,22 @@ between the two repos.
 
 ## Inventory
 
-### Backend (shared)
+### Backend (template-shared, per-app instance)
+
+> **Important architectural correction (2026-05-02):** the two apps run
+> against **separate Supabase projects**. The files below are shared as
+> a *template* (same schema, same migrations applied on both sides),
+> but each app has its own project URL, its own `auth.users`, its own
+> data, its own deployed Anthropic remote trigger. A user who signs up
+> on Coolshi PWA is not automatically a twobatch user.
 
 | Path | Status | Justification |
 |---|---|---|
-| `supabase/schema.sql` | shared | Single source of truth for the DB shape. Both clients read it. |
-| `supabase/migrations/0001..0005_*.sql` | shared | Applied to the same Supabase project. Mirror new migration files into the twobatch repo as they're added; apply once via MCP. |
-| `supabase/seed.sql` | shared | Default brief / starter data. |
-| `supabase/setup-pg-cron.sql` | shared | Reproducible record of the Vault secret + pg_cron schedules. |
-| `routines/coolshi-briefing/` | shared | The Claude Code routine. **Keep the directory name `coolshi-briefing` even in the twobatch repo** — the deployed Anthropic remote trigger (`trig_01MgjazPFP9o7YN9p8y98jKB`) is bound to that name. Renaming would break production. |
+| `supabase/schema.sql` | template-shared | Single source of truth for the DB shape. Both projects start from this file. |
+| `supabase/migrations/0001..0005_*.sql` | template-shared | Mirror SQL files between repos; **apply each migration to BOTH Supabase projects** (Coolshi via the existing MCP link, twobatch via its own MCP link once the project is created). |
+| `supabase/seed.sql` | template-shared | Default brief / starter data — different rows per project. |
+| `supabase/setup-pg-cron.sql` | template-shared | Each project gets its own Vault secret + pg_cron schedules. The CRON_SECRET value is per-project. |
+| `routines/coolshi-briefing/` | template-shared | Codebase of the Claude Code routine. **Keep the directory name `coolshi-briefing` even in the twobatch repo** — the *Coolshi-side* deployed Anthropic remote trigger (`trig_01MgjazPFP9o7YN9p8y98jKB`) is bound to that name. The twobatch project will deploy its own trigger pointing at the twobatch Supabase MCP. |
 
 ### Coolshi-only (stays here, no twobatch port)
 
@@ -112,7 +119,21 @@ between the two repos.
 
 ## Sync rules between the two repos
 
-- **Backend changes** (`supabase/`) — apply once via Supabase MCP (the live DB is the same project for both clients). Mirror the migration `.sql` file into both repos.
-- **Routine changes** (`routines/coolshi-briefing/`) — update the SKILL.md AND the deployed remote trigger via `RemoteTrigger update` (see memory file `coolshi_routine_deployment.md`). Mirror the SKILL.md file into both repos.
-- **Shared library code** (`lib/card-format.ts`, `lib/url.ts`, `lib/fixtures/cards.ts`, `lib/supabase/database.types.ts`) — update in Coolshi first, then run `scripts/sync-shared.sh` in twobatch (created in Phase 10) to copy over.
-- **Migrations** affecting tables both clients use (e.g. `push_subscriptions`, `ad_unlocks`) — apply via MCP, mirror SQL into both repos.
+- **Backend SQL changes** (`supabase/`) — mirror the `.sql` file into
+  both repos AND apply the migration to **both Supabase projects**
+  (the Coolshi project via its existing MCP, the twobatch project via
+  its own MCP link). The two projects must run identical schemas; data
+  is per-project.
+- **Routine prompt changes** (`routines/coolshi-briefing/SKILL.md`) —
+  mirror the file into both repos. Each app updates its own deployed
+  Anthropic remote trigger (`RemoteTrigger update`) — the Coolshi
+  trigger ID is `trig_01MgjazPFP9o7YN9p8y98jKB` (in memory); the
+  twobatch trigger ID will be created when its Supabase project is
+  set up.
+- **Shared library code** (`lib/card-format.ts`, `lib/url.ts`,
+  `lib/fixtures/cards.ts`, `lib/supabase/database.types.ts`) — update
+  in Coolshi first, then sync to twobatch (via the planned
+  `scripts/sync-shared.sh` from Phase 10).
+- **Per-app secrets** (Supabase URL/anon key, CRON_SECRET, AppLovin
+  SDK key, Apple Sign-In Service ID, APNs .p8 key) — each app stores
+  its own. Never share values across projects.
