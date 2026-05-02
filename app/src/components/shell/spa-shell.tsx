@@ -9,9 +9,9 @@ import { BriefScreen } from "@/components/screens/brief-screen";
 import { SavedScreen } from "@/components/screens/saved-screen";
 
 const TABS: TabDef[] = [
-  { id: "feed", label: "Feed" },
+  { id: "feed", label: "Feed", fullBleed: true },
   { id: "brief", label: "Brief" },
-  { id: "saved", label: "Saved" },
+  { id: "saved", label: "Saved", fullBleed: true },
 ];
 
 interface Props {
